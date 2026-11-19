@@ -591,6 +591,7 @@ local function startFleePlanner(ctx,serial)
             local root=charRoot()
             local foe,dist=nearest("monsters")
             if not root or not foe or dist>=SAFE_RANGE then break end
+            local startPosition=root.Position
             local enemy=positionOf(foe)
             if not enemy then break end
             local away=Vector3.new(root.Position.X-enemy.X,0,root.Position.Z-enemy.Z)
@@ -623,7 +624,7 @@ local function startFleePlanner(ctx,serial)
             end
             local current=charRoot()
             if ctx.active and movementAlive(serial) and bestWaypoints and current
-                and flatDistance(current.Position,root.Position)<12 then
+                and flatDistance(current.Position,startPosition)<12 then
                 ctx.waypoints=bestWaypoints
                 ctx.index=2
                 ctx.routeTime=os.clock()
