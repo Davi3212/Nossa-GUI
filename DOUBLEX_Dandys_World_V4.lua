@@ -621,7 +621,9 @@ local function startFleePlanner(ctx,serial)
                     end
                 end
             end
-            if ctx.active and movementAlive(serial) and bestWaypoints then
+            local current=charRoot()
+            if ctx.active and movementAlive(serial) and bestWaypoints and current
+                and flatDistance(current.Position,root.Position)<12 then
                 ctx.waypoints=bestWaypoints
                 ctx.index=2
                 ctx.routeTime=os.clock()
@@ -724,8 +726,9 @@ local function escapeDanger(serial)
         for _,angle in ipairs({0,30,-30,65,-65,100,-100,145,-145,180}) do
             table.insert(directions,{dir=rotateFlat(away,angle),route=false,angle=angle})
         end
-        local bestDirection,bestScore,bestStep=nil,-math.huge,0
-        local bestCorridor=0
+        -- Primeira passada barata: detecta paredes + chao nos 10 rumos.
+        -- Segunda passada: escaneia beco e laterais APENAS nas 4 melhores.
+        local candidates={}
         for _,option in ipairs(directions) do
             local dir=option.dir
             local free=radarClearance(pos,dir,13,params)
@@ -733,29 +736,34 @@ local function escapeDanger(serial)
                 local step=math.min(free-1.15,8)
                 local endPos=escapeLanding(pos+dir*step,pos.Y,params,6.8)
                 if endPos then
-                    -- Confere abertura lateral no fim do segmento: reduz entradas em becos.
-                    local left=rotateFlat(dir,80)
-                    local right=rotateFlat(dir,-80)
-                    local sideOpen=math.max(
-                        radarClearance(endPos,left,7,params),
-                        radarClearance(endPos,right,7,params))
-                    local forwardOpen=radarClearance(endPos,dir,8,params)
                     local enemyClear=enemyAt(endPos)
-                    local memory=ctx.visited[gridCell(endPos)] or 0
-                    local score=(enemyClear-dist)*3.5+
-                        free*.9+sideOpen*.65+forwardOpen*.8-
-                        memory*2.8-math.abs(option.angle)*.014
-                    if option.route then score=score+9 end
-                    if ctx.heading and dir:Dot(ctx.heading)>.78 then score=score+3.2 end
-                    if ctx.blockedHeading and now<ctx.blockUntil and
-                        dir:Dot(ctx.blockedHeading)>.55 then
-                        score=score-24
-                    end
-                    -- Proibe entrar diretamente em cima do monstro.
-                    if enemyClear>math.max(5,dist-4) and score>bestScore then
-                        bestDirection,bestScore,bestStep,bestCorridor=dir,score,step,sideOpen
+                    if enemyClear>math.max(5,dist-4) then
+                        local memory=ctx.visited[gridCell(endPos)] or 0
+                        local score=(enemyClear-dist)*3.5+free*.9-
+                            memory*2.8-math.abs(option.angle)*.014
+                        if option.route then score=score+9 end
+                        if ctx.heading and dir:Dot(ctx.heading)>.78 then score=score+3.2 end
+                        if ctx.blockedHeading and now<ctx.blockUntil and
+                            dir:Dot(ctx.blockedHeading)>.55 then score=score-24 end
+                        table.insert(candidates,{dir=dir,step=step,pos=endPos,score=score})
                     end
                 end
+            end
+        end
+        table.sort(candidates,function(a,b)return a.score>b.score end)
+        local bestDirection,bestScore,bestStep=nil,-math.huge,0
+        local bestCorridor=0
+        for i=1,math.min(4,#candidates) do
+            local c=candidates[i]
+            local sideOpen=math.max(
+                radarClearance(c.pos,rotateFlat(c.dir,80),7,params),
+                radarClearance(c.pos,rotateFlat(c.dir,-80),7,params))
+            local forwardOpen=radarClearance(c.pos,c.dir,8,params)
+            local finalScore=c.score+sideOpen*.8+forwardOpen*1.05
+            -- Evita entrar em cantos que fecham logo depois do proximo passo.
+            if sideOpen<3 and forwardOpen<3 then finalScore=finalScore-20 end
+            if finalScore>bestScore then
+                bestDirection,bestScore,bestStep,bestCorridor=c.dir,finalScore,c.step,sideOpen
             end
         end
 
