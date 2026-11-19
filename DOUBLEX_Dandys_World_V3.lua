@@ -610,7 +610,7 @@ local function escapeDanger(serial)
     say("Fuga expirou; controle manual recomendado.")
     return "timeout"
 end
-local function pickReachableGoal(kind,target,serial)
+local function pickReachableGoal(kind,target,serial,dropTries)
     local root=charRoot()
     local center=positionOf(target)
     if not root or not center then return nil end
@@ -654,6 +654,14 @@ local function pickReachableGoal(kind,target,serial)
             end
         end
         if best then break end
+    end
+    -- Se comecou em cima de cerca/mesa e nenhum caminho existe,
+    -- tenta uma descida curta antes de procurar as entradas novamente.
+    if not best and (dropTries or 0)<2 and movementAlive(serial) then
+        say("Sem rota deste nivel; buscando descida segura...")
+        if trySafeDrop(center,serial,true) then
+            return pickReachableGoal(kind,target,serial,(dropTries or 0)+1)
+        end
     end
     return best
 end
