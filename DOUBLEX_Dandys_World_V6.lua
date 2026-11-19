@@ -969,7 +969,6 @@ local function pickReachableGoal(kind,target,serial,dropTries)
         for _,anchor in ipairs(doors) do
             for _,degrees in ipairs({0,90,180,270}) do
                 if not movementAlive(serial) then return nil end
-                if enemyAt(charRoot().Position)<9 then return nil,"danger" end
                 local d=rotateFlat(Vector3.new(1,0,0),degrees)
                 local candidate=escapeLanding(anchor+d*4.8,root.Position.Y,params,9)
                 if candidate then
