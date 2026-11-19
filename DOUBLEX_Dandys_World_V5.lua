@@ -930,6 +930,48 @@ local function pickReachableGoal(kind,target,serial,dropTries)
     local root=charRoot()
     local center=positionOf(target)
     if not root or not center then return nil end
+    if kind=="elevator" then
+        -- Procura primeiro os pontos de entrada/porta do modelo do elevador.
+        local anchors={{point=center,bonus=0}}
+        local checked=0
+        for _,piece in ipairs(target:GetDescendants()) do
+            if piece:IsA("BasePart") then
+                local title=piece.Name:lower()
+                if title:find("door") or title:find("entrance") or
+                   title:find("entry") or title:find("enter") or
+                   title:find("trigger") or title:find("elevator") then
+                    table.insert(anchors,{point=piece.Position,bonus=-10})
+                    checked=checked+1
+                end
+                if checked>=9 then break end
+            end
+        end
+        local best,bestScore=nil,math.huge
+        local params=escapeRayParams()
+        for _,anchor in ipairs(anchors) do
+            for _,radius in ipairs({3.5,5.5,8}) do
+                for _,degrees in ipairs({0,90,180,270}) do
+                    if not movementAlive(serial) then return nil end
+                    if enemyAt(charRoot().Position)<DANGER_RANGE then return nil,"danger" end
+                    local d=rotateFlat(Vector3.new(1,0,0),degrees)
+                    local pos=anchor.point+d*radius
+                    local candidate=escapeLanding(pos,root.Position.Y,params,9)
+                    if candidate then
+                        local _,wps=buildPath(root.Position,candidate)
+                        if wps then
+                            local score=lengthOf(wps)+
+                                flatDistance(candidate,anchor.point)*.8+anchor.bonus
+                            if score<bestScore then
+                                best,bestScore=candidate,score
+                            end
+                        end
+                    end
+                end
+            end
+            if best and anchor.bonus<0 then break end
+        end
+        return best
+    end
     if kind~="machines" then
         return onFloor(center,target) or center
     end
