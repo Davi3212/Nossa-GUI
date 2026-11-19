@@ -829,7 +829,7 @@ local function escapeDanger(serial)
         blockConnection=nil,blocked=false,visited={},
         heading=nil,lastBlocked=nil,blockedUntil=0,
         lastPos=nil,lastProgress=os.clock(),lastVisit=0,lastMove=0,
-        lastWarn=0
+        lastWarn=0,lastEmergencyScan=0,emergencyHeading=nil
     }
     planEscapeRoutes(ctx,serial)
     local function finish(reason,message,stop)
@@ -903,8 +903,15 @@ local function escapeDanger(serial)
 
         -- Enquanto planeja outra rota, faz pequenos movimentos em direcoes verificadas.
         if not command then
-            local dir=emergencyDirection(ctx,pos,params,foe)
-            if dir then
+            -- Limita varreduras pesadas no celular sem perder o sensor frontal.
+            local dir=ctx.emergencyHeading
+            local valid=dir and corridorClear(pos,dir,4.5,params)
+            if not valid or now-ctx.lastEmergencyScan>.32 then
+                dir=emergencyDirection(ctx,pos,params,foe)
+                ctx.emergencyHeading=dir
+                ctx.lastEmergencyScan=now
+            end
+            if dir and corridorClear(pos,dir,4.5,params) then
                 ctx.heading=dir
                 command=pos+dir*4.5
             else
