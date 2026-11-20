@@ -1861,11 +1861,28 @@ local function findCircleElements()
     if not screen then return nil,reason end
     if not isCirclePresented() then return nil,"circulo nao visivel" end
     local shared=screen:FindFirstChild("Shared")
-    local button=(scope~=screen and scope:FindFirstChild("TapButton",true))
-        or (shared and shared:FindFirstChild("TapButton"))
-        or screen:FindFirstChild("TapButton",true)
-    if not button or not button:IsA("GuiButton") or not visibleGui(button) then
-        return nil,"TapButton real do Skillchecks nao localizado"
+    local button=nil
+    -- Nunca escolher um TapButton oculto do Horizontal por acidente.
+    local candidates={}
+    if scope~=screen then
+        local scoped=scope:FindFirstChild("TapButton",true)
+        if scoped then table.insert(candidates,scoped) end
+    end
+    local sharedButton=shared and shared:FindFirstChild("TapButton")
+    if sharedButton then table.insert(candidates,sharedButton) end
+    for _,o in ipairs(screen:GetDescendants()) do
+        if o.Name=="TapButton" and o:IsA("GuiButton") then
+            table.insert(candidates,o)
+        end
+    end
+    for _,candidate in ipairs(candidates) do
+        if candidate:IsA("GuiButton") and visibleGui(candidate) then
+            button=candidate
+            break
+        end
+    end
+    if not button then
+        return nil,"TapButton real e visivel nao localizado"
     end
     local best,bestScore=nil,-math.huge
     for _,r in ipairs(records) do
