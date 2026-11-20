@@ -2264,7 +2264,9 @@ local function activeSwimUI()
     if not scope or scope==PG then
         scope=prompt:FindFirstAncestorOfClass("ScreenGui")
     end
-    if not scope then return {mode="undetectable",reason="tela sem container"},nil end
+    if not scope or not scope:IsA("GuiObject") then
+        return {mode="undetectable",reason="sem container visual acessivel"},nil
+    end
     local fish=nil
     local weeds={}
     local minX=scope:IsA("GuiObject") and scope.AbsolutePosition.X or 0
@@ -2410,7 +2412,7 @@ task.spawn(function()
             treadmillSession=nil
             minigameMode="nenhum"
         end
-        task.wait(.13)
+        task.wait(.18)
     end
 end)
 
