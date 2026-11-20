@@ -2062,7 +2062,7 @@ local function skillDiagnostic()
 end
 
 heading("MAQUINAS / SKILLCHECK")
-addButton("Auto SkillCheck linha + circulo (BETA)",function()
+addButton("Auto SkillCheck verde / circulo (V11)",function()
     state.autoSkill=not state.autoSkill
     skillInfo=nil
     skillNeedleLastX=nil
@@ -2071,7 +2071,7 @@ addButton("Auto SkillCheck linha + circulo (BETA)",function()
     circleInfo=nil
     circleArmed=true
     circleActive=false
-    say(state.autoSkill and "Auto SkillCheck ON: linha + circulo (BETA)."
+    say(state.autoSkill and "Auto SkillCheck V11 ON: barra verde e circulo."
         or "Auto SkillCheck desligado.")
 end,"autoSkill")
 addButton("Diagnosticar SkillCheck (copiar)",function()
