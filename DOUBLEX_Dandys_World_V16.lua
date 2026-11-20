@@ -1833,9 +1833,7 @@ end
 local function circleCandidates()
     local screen,reason=circleScreen()
     if not screen then return nil,nil,nil,reason end
-    if not isCirclePresented() then
-        return screen,screen,{},"prompt circular nao esta ativo"
-    end
+    -- O prompt ativo e validado em findCircleElements / loop principal.
     local scope=circleScope(screen)
     local now=os.clock()
     local records={}
