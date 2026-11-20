@@ -1849,37 +1849,45 @@ local function circleCandidates()
 end
 -- Reconhece o minijogo circular pelo texto mostrado na propria tela.
 -- Nao confunde barra horizontal, nado e outras imagens vermelhas do HUD.
+local cachedCircleState=false
+local cachedCircleChecked=0
 local function isCirclePresented()
     local screen=circleScreen()
-    if not screen then return false end
-    local texts={}
+    if not screen then
+        cachedCircleState=false
+        return false
+    end
     local shared=screen:FindFirstChild("Shared")
     local prompt=shared and shared:FindFirstChild("Prompt")
-    if prompt and visibleGui(prompt) then
-        table.insert(texts,skillText(prompt))
+    -- A instrucao principal e examinada a cada frame, sem scans pesados.
+    local t=prompt and visibleGui(prompt) and skillText(prompt) or ""
+    local isCircle=t:find("círculo",1,true) or
+        t:find("circulo",1,true) or t:find("circle",1,true) or
+        t:find("ring",1,true) or t:find("anel",1,true)
+    if isCircle then
+        cachedCircleState=true
+        return true
     end
-    -- Nova interface pode colocar a instrucao no ClientUI.
+    -- Se o texto migrar para ClientUI, so pesquisa a cada 0.35 s.
+    local now=os.clock()
+    if now-cachedCircleChecked<.35 then return cachedCircleState end
+    cachedCircleChecked=now
+    cachedCircleState=false
     local client=PG:FindFirstChild("ClientUI")
-    if client then
-        for _,obj in ipairs(client:GetDescendants()) do
-            if obj:IsA("TextLabel") and visibleGui(obj) then
-                local t=skillText(obj)
-                if t~="" and (t:find("skil") or t:find("círc") or
-                    t:find("circ") or t:find("anel")) then
-                    table.insert(texts,t)
-                end
+    if not client then return false end
+    for _,obj in ipairs(client:GetDescendants()) do
+        if obj:IsA("TextLabel") and visibleGui(obj) then
+            local content=skillText(obj)
+            if content:find("círculo",1,true) or
+                content:find("circulo",1,true) or
+                content:find("circle",1,true) or
+                content:find("ring",1,true) or
+                content:find("anel",1,true) then
+                cachedCircleState=true
+                return true
             end
         end
     end
-    for _,t in ipairs(texts) do
-        if (t:find("círculo",1,true) or t:find("circulo",1,true)
-            or t:find("circle",1,true) or t:find("ring",1,true)
-            or t:find("anel",1,true)) and
-            not t:find("fim do jogo",1,true) then
-            return true
-        end
-    end
-    -- Respeita o detector horizontal; nao mistura com a barra.
     return false
 end
 local function findCircleElements()
