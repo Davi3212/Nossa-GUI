@@ -1054,7 +1054,7 @@ local function escapeDanger(serial)
         if not command then
             -- Se preso numa grade, primeiro tente retornar ao ultimo corredor
             -- realmente aberto; sem teleportar ou bater na mesma estrutura.
-            if ctx.lastOpenPos then
+            if ctx.lastOpenPos and ctx.lastBlocked and now<ctx.blockedUntil then
                 local back=Vector3.new(ctx.lastOpenPos.X-pos.X,0,
                     ctx.lastOpenPos.Z-pos.Z)
                 if back.Magnitude>3 and back.Magnitude<17 and
