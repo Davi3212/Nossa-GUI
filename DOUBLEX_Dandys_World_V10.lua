@@ -1690,6 +1690,17 @@ local function goldZone(o)
     return n:find("yellow") or n:find("perfect") or n:find("gold")
         or (color.R>.66 and color.G>.4 and color.B<.5)
 end
+-- Seleciona botao clicavel ou texto do prompt, para o modo circular no Delta.
+local function findSkillButton(all)
+    local fallback=nil
+    for _,o in ipairs(all) do
+        if isSkillPrompt(o) and o.AbsoluteSize.X>85 then
+            if o:IsA("TextButton") or o:IsA("ImageButton") then return o end
+            if not fallback then fallback=o end
+        end
+    end
+    return fallback
+end
 local function findSkillElements()
     local all={}
     for _,o in ipairs(PG:GetDescendants()) do
@@ -1697,15 +1708,7 @@ local function findSkillElements()
             table.insert(all,o)
         end
     end
-    local button=nil
-    for _,o in ipairs(all) do
-        if isSkillPrompt(o) and o.AbsoluteSize.X>90 then
-            if o:IsA("TextButton") or o:IsA("ImageButton") then
-                button=o
-                break
-            end
-        end
-    end
+    local button=findSkillButton(all)
     if not button then return nil,"botao SKILLCHECK nao detectado" end
     local bx=button.AbsolutePosition.X+button.AbsoluteSize.X*.5
     local by=button.AbsolutePosition.Y
@@ -1745,6 +1748,112 @@ local function findSkillElements()
     return nil,"alvo dourado/indicador vermelho nao encontrados"
 end
 
+-- CIRCLE MACHINES: anel vermelho fica menor ate tocar zona cinza/dourada.
+-- Heuristica por cores/UIStroke/nome e tamanho animado (sem remotes do servidor).
+local circleSizes=setmetatable({}, {__mode="k"})
+local circleScanAt=0
+local circleInfo=nil
+local circleLastWidth=nil
+local circleLastAt=nil
+local circleArmed=true
+local circleActive=false
+local function isRingRed(c)
+    return c and c.R>.46 and c.R>c.G*1.48 and c.R>c.B*1.45
+end
+local function isRingGold(c)
+    return c and c.R>.67 and c.G>.35 and c.R>c.B*1.42
+end
+local function ringColors(o)
+    local colors={}
+    if (o:IsA("ImageLabel") or o:IsA("ImageButton"))
+        and o.ImageTransparency<.85 then
+        table.insert(colors,o.ImageColor3)
+    end
+    if o.BackgroundTransparency<.85 then
+        table.insert(colors,o.BackgroundColor3)
+    end
+    for _,c in ipairs(o:GetChildren()) do
+        if c:IsA("UIStroke") and c.Enabled and c.Transparency<.8 then
+            table.insert(colors,c.Color)
+        end
+    end
+    return colors
+end
+local function circleElementScore(o)
+    local p,z=o.AbsolutePosition,o.AbsoluteSize
+    if z.X<65 or z.Y<65 or z.X>970 or z.Y>970
+        or z.X/z.Y<.76 or z.X/z.Y>1.24 then
+        return nil
+    end
+    local name=o.Name:lower()
+    local red=0
+    local target=0
+    for _,color in ipairs(ringColors(o)) do
+        if isRingRed(color) then red=math.max(red,6) end
+        if isRingGold(color) then target=math.max(target,7) end
+    end
+    if name:find("red") or name:find("shrink") or name:find("moving") then
+        red=math.max(red,5)
+    end
+    if name:find("gold") or name:find("yellow") or name:find("perfect") then
+        target=math.max(target,6)
+    elseif name:find("white") or name:find("grey") or
+        name:find("gray") or name:find("target") then
+        target=math.max(target,3)
+    end
+    if (name:find("circle") or name:find("ring")) and target==0 then
+        target=1
+    end
+    local now=os.clock()
+    local previous=circleSizes[o]
+    local shrinking=previous and now-previous.t<.5
+        and previous.w-z.X>.65 and previous.w-z.X<z.X*.4
+    circleSizes[o]={w=z.X,t=now}
+    if shrinking then red=math.max(red,4) end
+    if red==0 and target==0 then
+        -- Imagens nao tintadas podem carregar as faixas no proprio PNG.
+        if (o:IsA("ImageLabel") or o:IsA("ImageButton"))
+            and z.X>=100 and z.X<=350 then target=1 end
+    end
+    return {
+        obj=o,red=red,target=target,width=z.X,
+        cx=p.X+z.X*.5,cy=p.Y+z.Y*.5,shrinking=shrinking
+    }
+end
+local function findCircleElements()
+    local all,rounds={},{}
+    for _,o in ipairs(PG:GetDescendants()) do
+        if o:IsA("GuiObject") and not o:IsDescendantOf(gui) and visibleGui(o) then
+            table.insert(all,o)
+            local record=circleElementScore(o)
+            if record then table.insert(rounds,record) end
+        end
+    end
+    local button=findSkillButton(all)
+    if not button then return nil,"prompt da verificacao nao encontrado" end
+    local best,bestScore=nil,-math.huge
+    for _,r in ipairs(rounds) do
+        if r.red>0 then
+            for _,g in ipairs(rounds) do
+                if g.obj~=r.obj and g.target>0 and
+                    g.width>=72 and g.width<=370 and
+                    math.abs(r.cx-g.cx)<math.max(25,g.width*.14) and
+                    math.abs(r.cy-g.cy)<math.max(25,g.width*.14) and
+                    r.width>g.width*.73 and r.width<g.width*3.6 then
+                    local score=r.red*5+g.target*5
+                        +(r.shrinking and 9 or 0)
+                        -math.abs(r.width-g.width)*.018
+                    -- Prefere a faixa amarela real sobre o disco escuro.
+                    if score>bestScore then
+                        best,bestScore={red=r.obj,gold=g.obj,button=button},score
+                    end
+                end
+            end
+        end
+    end
+    if best then return best,nil end
+    return nil,"anel vermelho e faixa circular ainda nao identificados"
+end
 local skillInfo=nil
 local lastSkillScan=0
 local skillNeedleLastX=nil
@@ -1752,26 +1861,87 @@ local skillNeedleLastAt=nil
 local skillPressedAt=0
 local skillStatusAt=0
 local skillArmed=true
-local function clickRealSkillButton(btn)
-    local x=btn.AbsolutePosition.X+btn.AbsoluteSize.X*.5
-    local y=btn.AbsolutePosition.Y+btn.AbsoluteSize.Y*.5
-    local ok=false
+local function clickRealSkillButton(btn,preferSpace)
+    local x=btn and (btn.AbsolutePosition.X+btn.AbsoluteSize.X*.5) or 0
+    local y=btn and (btn.AbsolutePosition.Y+btn.AbsoluteSize.Y*.5) or 0
     local vim
     pcall(function()vim=game:GetService("VirtualInputManager")end)
-    if vim then
-        ok=pcall(function()
-            vim:SendMouseButtonEvent(x,y,0,true,game,0)
-            vim:SendMouseButtonEvent(x,y,0,false,game,0)
-        end)
-        if not ok then
-            ok=pcall(function()
+    local function space()
+        if vim then
+            return pcall(function()
                 vim:SendKeyEvent(true,Enum.KeyCode.Space,false,game)
                 vim:SendKeyEvent(false,Enum.KeyCode.Space,false,game)
             end)
         end
+        if type(keypress)=="function" and type(keyrelease)=="function" then
+            return pcall(function()keypress(0x20);keyrelease(0x20)end)
+        end
+        return false
     end
-    return ok
+    local function tap()
+        if not btn or not vim then return false end
+        return pcall(function()
+            vim:SendMouseButtonEvent(x,y,0,true,game,0)
+            vim:SendMouseButtonEvent(x,y,0,false,game,0)
+        end)
+    end
+    if preferSpace then return space() or tap() end
+    return tap() or space()
 end
+-- Loop circular independente do SkillCheck de linha.
+bind(RunService.RenderStepped,function()
+    if not live or not state.autoSkill then
+        circleInfo=nil;circleLastWidth=nil;circleLastAt=nil
+        circleArmed=true;circleActive=false
+        return
+    end
+    local now=os.clock()
+    local valid=circleInfo and circleInfo.red.Parent and circleInfo.gold.Parent
+        and circleInfo.button.Parent and visibleGui(circleInfo.red)
+        and visibleGui(circleInfo.gold) and visibleGui(circleInfo.button)
+    if not valid then
+        circleInfo=nil;circleLastWidth=nil;circleLastAt=nil
+        circleArmed=true;circleActive=false
+    end
+    if not circleInfo and now-circleScanAt>.105 then
+        circleInfo=select(1,findCircleElements())
+        circleScanAt=now
+    end
+    if not circleInfo then return end
+    circleActive=true
+    local red=circleInfo.red
+    local gold=circleInfo.gold
+    local rw=red.AbsoluteSize.X
+    local gw=gold.AbsoluteSize.X
+    if circleLastWidth and circleLastAt then
+        local change=circleLastWidth-rw
+        local shrink=change>.12 and now-circleLastAt<.22
+        local diff=rw-gw
+        local onTarget=diff<=math.max(9,gw*.085)
+            and diff>=-math.max(9,gw*.13)
+        local nearTarget=diff<=math.max(23,gw*.16)
+            and diff>=-math.max(10,gw*.08)
+        if circleArmed and shrink and (onTarget or
+            (nearTarget and change>4))
+            and now-skillPressedAt>.45 then
+            local ok=clickRealSkillButton(circleInfo.button,true)
+            if ok then
+                circleArmed=false
+                skillPressedAt=now
+            end
+            if now-skillStatusAt>1.3 then
+                say(ok and "SkillCheck CIRCULAR: toque no anel (BETA)."
+                    or "SkillCheck circular: toque nao enviado, use manual.")
+                skillStatusAt=now
+            end
+        end
+        if not circleArmed and rw>gw*1.45
+            and now-skillPressedAt>.4 then
+            circleArmed=true
+        end
+    end
+    circleLastWidth=rw;circleLastAt=now
+end)
 -- Resposta a cada frame enquanto a faixa esta na tela. Busca rapida somente
 -- quando nao localizada; conserva amostras de movimento entre frames.
 bind(RunService.RenderStepped,function()
@@ -1782,6 +1952,7 @@ bind(RunService.RenderStepped,function()
         skillArmed=true
         return
     end
+    if circleActive then return end
     local now=os.clock()
     local valid=skillInfo and skillInfo.needle.Parent and skillInfo.gold.Parent
         and skillInfo.button.Parent and visibleGui(skillInfo.needle)
@@ -1840,9 +2011,11 @@ bind(RunService.RenderStepped,function()
 end)
 
 local function skillDiagnostic()
-    local rows={"DOUBLEX DANDY V9 - UI SKILLCHECK","Visivel no momento do skillcheck", ""}
+    local rows={"DOUBLEX DANDY V10 - UI SKILLCHECK","Visivel no momento do skillcheck", ""}
     local found,reason=findSkillElements()
-    table.insert(rows,found and "ELEMENTOS DETECTADOS" or ("NAO DETECTADO: "..tostring(reason)))
+    local foundCircle,reasonCircle=findCircleElements()
+    table.insert(rows,found and "BARRA DETECTADA" or ("BARRA: "..tostring(reason)))
+    table.insert(rows,foundCircle and "CIRCULO DETECTADO" or ("CIRCULO: "..tostring(reasonCircle)))
     local count=0
     for _,o in ipairs(PG:GetDescendants()) do
         if count>=95 then break end
@@ -1850,14 +2023,26 @@ local function skillDiagnostic()
             local p,z=o.AbsolutePosition,o.AbsoluteSize
             local viewport=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
             local screenH=viewport and viewport.Y or 800
-            if p.Y>screenH*.42 and p.Y<screenH*.98 then
-                count=count+1
-                local bg=skillColor(o)
-                local rgb=bg and string.format("%d,%d,%d",math.floor(bg.R*255),math.floor(bg.G*255),math.floor(bg.B*255)) or "-"
-                local txt=skillText(o):sub(1,38)
-                table.insert(rows,string.format("%s [%s] X%d Y%d W%d H%d RGB(%s) %s",
-                    o:GetFullName():sub(-90),o.ClassName,
-                    math.floor(p.X),math.floor(p.Y),math.floor(z.X),math.floor(z.Y),rgb,txt))
+            if p.Y>screenH*.06 and p.Y<screenH*.99 then
+                local circular=z.X>=65 and z.Y>=65 and z.Y>0
+                    and z.X/z.Y>.75 and z.X/z.Y<1.28
+                if circular or p.Y>screenH*.53 then
+                    count=count+1
+                    local bg=skillColor(o)
+                    local rgb=bg and string.format("%d,%d,%d",math.floor(bg.R*255),math.floor(bg.G*255),math.floor(bg.B*255)) or "-"
+                    local txt=skillText(o):sub(1,38)
+                    local strokes=""
+                    for _,c in ipairs(o:GetChildren()) do
+                        if c:IsA("UIStroke") then
+                            strokes=strokes..string.format(" STROKE(%d,%d,%d)",
+                                math.floor(c.Color.R*255),math.floor(c.Color.G*255),
+                                math.floor(c.Color.B*255))
+                        end
+                    end
+                    table.insert(rows,string.format("%s [%s] X%d Y%d W%d H%d RGB(%s)%s %s",
+                        o:GetFullName():sub(-90),o.ClassName,
+                        math.floor(p.X),math.floor(p.Y),math.floor(z.X),math.floor(z.Y),rgb,strokes,txt))
+                end
             end
         end
     end
@@ -1873,13 +2058,16 @@ local function skillDiagnostic()
 end
 
 heading("MAQUINAS / SKILLCHECK")
-addButton("Auto SkillCheck dourado (BETA)",function()
+addButton("Auto SkillCheck linha + circulo (BETA)",function()
     state.autoSkill=not state.autoSkill
     skillInfo=nil
     skillNeedleLastX=nil
     skillNeedleLastAt=nil
     skillArmed=true
-    say(state.autoSkill and "Auto SkillCheck ON: somente se a faixa for reconhecida."
+    circleInfo=nil
+    circleArmed=true
+    circleActive=false
+    say(state.autoSkill and "Auto SkillCheck ON: linha + circulo (BETA)."
         or "Auto SkillCheck desligado.")
 end,"autoSkill")
 addButton("Diagnosticar SkillCheck (copiar)",function()
