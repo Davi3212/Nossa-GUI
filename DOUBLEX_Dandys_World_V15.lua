@@ -2635,7 +2635,12 @@ task.spawn(function()
     while live do
         if state.autoSkill or state.autoSwim then
             local treadmill,reason=nil,nil
-            if state.autoSkill then
+            local swimmingNow=false
+            if state.autoSwim then
+                local window=select(1,swimWindow())
+                swimmingNow=window and swimSessionActive(window) or false
+            end
+            if state.autoSkill and not swimmingNow then
                 treadmill,reason=activeTreadmillUI()
             end
             if treadmill then
