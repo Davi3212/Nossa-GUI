@@ -2699,7 +2699,7 @@ task.spawn(function()
                 local finished=treadmill.counterFound and
                     treadmill.current>=treadmill.required
                 if not finished and session.attempts<limit and
-                    now-session.lastTap>.115 then
+                    now-session.lastTap>.075 then
                     local ok=clickRealSkillButton(treadmill.button,false)
                     session.attempts=session.attempts+1
                     session.lastTap=now
@@ -2749,7 +2749,8 @@ task.spawn(function()
         end
         -- Durante natacao, atualizar posicao do peixe e obstaculos
         -- mais rapido do que o scan de maquinas para evitar colisoes.
-        task.wait(state.autoSwim and minigameMode=="natacao" and .075 or .18)
+        task.wait((state.autoSwim and minigameMode=="natacao") and .075 or
+            ((state.autoSkill and minigameMode=="esteira") and .085 or .18))
     end
 end)
 
