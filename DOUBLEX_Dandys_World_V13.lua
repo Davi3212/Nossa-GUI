@@ -2361,8 +2361,11 @@ end
 task.spawn(function()
     local lastModeNotice=0
     while live do
-        if state.autoSkill then
-            local treadmill,reason=activeTreadmillUI()
+        if state.autoSkill or state.autoSwim then
+            local treadmill,reason=nil,nil
+            if state.autoSkill then
+                treadmill,reason=activeTreadmillUI()
+            end
             if treadmill then
                 minigameMode="esteira"
                 local now=os.clock()
