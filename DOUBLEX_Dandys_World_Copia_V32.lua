@@ -19,7 +19,7 @@ local live = true
 local connections, markers = {}, {}
 local state = {monsters=false, machines=false, items=false, elevator=false, players=false,
     danger=false, bright=false, antiAFK=false, autoElev=false,
-    speed=false, speedValue=26, autoPlay=false, autoSkill=false, autoSwim=false}
+    speed=false, speedValue=26, autoPlay=false, autoSkill=false}
 local navSerial = 0
 local autoRunId = 0
 local DANGER_RANGE=65
@@ -2519,7 +2519,7 @@ end
 -- V25: comando de teclado exigido pela interface mostrada pelo jogador.
 -- A V24 emitia evento de mouse, mudava o cursor do Delta e podia
 -- retornar true sem o jogo realmente aceitar o input.
-local circleV25={tested=0,sent=0,last="nenhum",autoSent=0}
+local circleV25={sent=0,last="nenhum",autoSent=0}
 local function sendCircleSpace()
     local did=false
     if type(keypress)=="function" and type(keyrelease)=="function" then
@@ -2702,7 +2702,7 @@ bind(RunService.RenderStepped,function()
     skillNeedleLastAt=now
 end)
 
-local function skillDiagnostic()
+local function skillDiagnostic(onlyReport)
     local rows={"DOUBLEX DANDY V32 - SKILLCHECK",
         "Circular/Horizontal - diagnostico da arvore Skillchecks",""}
     local bar,barReason=findSkillElements()
@@ -2710,7 +2710,6 @@ local function skillDiagnostic()
     table.insert(rows,"Horizontal: "..(bar and "detectado" or tostring(barReason)))
     table.insert(rows,"Circular: "..(circle and "detectado" or tostring(circleWhy)))
     table.insert(rows,"Clique circular: "..circleTapMethod)
-    table.insert(rows,"V25 - Espaco tentativas manuais: "..circleV25.tested)
     table.insert(rows,"V25 - Espaco auto: "..circleV25.autoSent)
     table.insert(rows,"V25 - Comandos enviados: "..circleV25.sent)
     table.insert(rows,"V25 - Metodo/ultimo: "..circleV25.last)
@@ -2880,6 +2879,7 @@ local function skillDiagnostic()
         table.insert(rows,"Skillchecks nao encontrado")
     end
     local report=table.concat(rows,"\n")
+    if onlyReport then return report end
     if type(setclipboard)=="function" then
         local ok=pcall(function()setclipboard(report)end)
         say(ok and "Diagnostico V25 copiado. Envie aqui."
@@ -2890,7 +2890,7 @@ local function skillDiagnostic()
     print(report)
 end
 heading("VERIFICACOES / SKILLCHECK")
-addButton("Auto SkillCheck + esteira (V32)",function()
+addButton("Auto SkillCheck",function()
     state.autoSkill=not state.autoSkill
     skillInfo=nil
     skillNeedleLastX=nil
@@ -2899,28 +2899,10 @@ addButton("Auto SkillCheck + esteira (V32)",function()
     circleInfo=nil
     circleArmed=true
     circleActive=false
-    say(state.autoSkill and "V32 ON: verificacoes automaticas."
-        or "Auto SkillCheck desligado.")
+    say(state.autoSkill and "Auto SkillCheck ON: linha, circulo, esteira e natacao."
+        or "Auto SkillCheck OFF: todas as verificacoes paradas.")
 end,"autoSkill")
--- V22: TESTE ISOLADO (um unico toque) para separar erro de input de erro no alvo.
--- Teste isolado de input; independe do tamanho do anel.
--- Verifica se a tecla SPACE reconhecida no screenshot chega ao jogo.
-addButton("TESTE circular: ESPACO 1x (sem mouse)",function()
-    if not isCirclePresented() then
-        circleV25.last="teste bloqueado: circulo nao esta ativo"
-        say("Abra um skillcheck circular antes do teste.")
-        return
-    end
-    circleV25.tested=circleV25.tested+1
-    local ok=sendCircleSpace()
-    say(ok and "Teste V25: Space enviado. Confira se o jogo reagiu."
-        or "Teste V25: tecla Space nao enviada pelo Delta.")
-end)
-addButton("Diagnosticar SkillCheck (copiar)",function()
-    skillDiagnostic()
-end)
-
--- V13: dois novos tipos de maquinas com controle isolado do resto do hub.
+-- Verificacoes reunidas no Auto SkillCheck (inclui minijogos).
 -- TREADMILL (gota azul): pede 4 a 8 cliques, monitora numero atual.
 -- SWIMMY BARNABY (nadar): so tenta ajudar se peixe e obstaculos estao
 -- representados como elementos separados da interface. Nunca toca no escuro.
@@ -3433,10 +3415,10 @@ end
 task.spawn(function()
     local lastModeNotice=0
     while live do
-        if state.autoSkill or state.autoSwim then
+        if state.autoSkill then
             local treadmill,reason=nil,nil
             local swimmingNow=false
-            if state.autoSwim then
+            if state.autoSkill then
                 local window=select(1,swimWindow())
                 swimmingNow=window and swimSessionActive(window) or false
             end
@@ -3492,13 +3474,13 @@ task.spawn(function()
                 local swim=select(1,activeSwimUI())
                 if swim then
                     minigameMode="natacao"
-                    if swim.mode=="worldmodel" and state.autoSwim then
+                    if swim.mode=="worldmodel" and state.autoSkill then
                         swimControlWorld(swim)
-                    elseif swim.mode=="structured" and state.autoSwim then
+                    elseif swim.mode=="structured" and state.autoSkill then
                         swimControlTick(swim)
                     elseif swim.mode=="undetectable" then
                         miniLastError=swim.reason
-                        if state.autoSwim and os.clock()-lastModeNotice>5 then
+                        if state.autoSkill and os.clock()-lastModeNotice>5 then
                             say("Nadacao: sprite ou algas nao detectados; controle manual.")
                             lastModeNotice=os.clock()
                         end
@@ -3513,12 +3495,12 @@ task.spawn(function()
         end
         -- Durante natacao, atualizar posicao do peixe e obstaculos
         -- mais rapido do que o scan de maquinas para evitar colisoes.
-        task.wait((state.autoSwim and minigameMode=="natacao") and .075 or
+        task.wait((state.autoSkill and minigameMode=="natacao") and .075 or
             ((state.autoSkill and minigameMode=="esteira") and .085 or .18))
     end
 end)
 
-local function miniDiagnostic()
+local function miniDiagnostic(onlyReport)
     local lines={
         "DOUBLEX HUB DANDY V18 - MINIJOGOS",
         "Modo detectado: "..minigameMode,
@@ -3557,7 +3539,7 @@ local function miniDiagnostic()
                 "ALVO 3D: Y=%.2f | proximo vao X=%.2f | deltaX=%.2f",
                 swimWorldGap.target,swimWorldGap.x,swimWorldGap.dist))
         end
-        table.insert(lines,"Auto natacao: "..tostring(state.autoSwim))
+        table.insert(lines,"Auto natacao: "..tostring(state.autoSkill))
     end
     local window,windowReason=swimWindow()
     if not window then
@@ -3613,6 +3595,7 @@ local function miniDiagnostic()
         end
     end
     local result=table.concat(lines,"\n")
+    if onlyReport then return result end
     if type(setclipboard)=="function" then
         local ok=pcall(function()setclipboard(result)end)
         say(ok and "Diagnostico V15 3D copiado. Envie aqui."
@@ -3623,15 +3606,18 @@ local function miniDiagnostic()
     print(result)
 end
 
-heading("MINIJOGOS / NATACAO")
-addButton("Auto natacao 3D (BETA)",function()
-    state.autoSwim=not state.autoSwim
-    say(state.autoSwim and
-        "Natacao 3D ON: segue as aberturas das algas (BETA)." or
-        "Natacao OFF: controle manual.")
-end,"autoSwim")
-addButton("Diagnosticar peixe / algas 3D (copiar)",function()
-    miniDiagnostic()
+-- Um unico diagnostico da aba: inclui o SkillCheck tradicional,
+-- os aneis, a esteira e a natacao 3D, sem botoes de testes separados.
+addButton("Diagnosticar verificacoes (copiar)",function()
+    local report=skillDiagnostic(true).."\n\n"..miniDiagnostic(true)
+    if type(setclipboard)=="function" then
+        local ok=pcall(function()setclipboard(report)end)
+        say(ok and "Diagnostico das verificacoes copiado."
+            or "Falha ao copiar; confira o console Delta.")
+    else
+        say("Diagnostico no console Delta (clipboard indisponivel).")
+    end
+    print(report)
 end)
 
 local function countMachines()
