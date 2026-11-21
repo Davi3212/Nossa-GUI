@@ -18,7 +18,7 @@ if _G.DOUBLEXDandyCleanup then pcall(_G.DOUBLEXDandyCleanup) end
 local live = true
 local connections, markers = {}, {}
 local state = {monsters=false, machines=false, items=false, elevator=false, players=false,
-    danger=false, bright=false, antiAFK=false, autoElev=false,
+    danger=false, bright=false, antiAFK=false, autoCollect=false, autoElev=false,
     speed=false, speedValue=26, autoPlay=false, autoSkill=false}
 local navSerial = 0
 local autoRunId = 0
@@ -2019,6 +2019,12 @@ heading("SOBREVIVENCIA")
 addButton("Aviso de Twisted proximo",function()state.danger=not state.danger end,"danger")
 addButton("Iluminacao clara (Fullbright)",function()setBright(not state.bright)end,"bright")
 addButton("Anti-AFK opcional",function()state.antiAFK=not state.antiAFK end,"antiAFK")
+addButton("Coletor de itens / fitas",function()
+    state.autoCollect=not state.autoCollect
+    say(state.autoCollect and
+        "Coletor ON: fitas, capsulas e itens ao passar perto."
+        or "Coletor OFF: coleta automatica interrompida.")
+end,"autoCollect")
 heading("VELOCIDADE")
 addButton("Speed ON / OFF",function()
     setSpeed(not state.speed)
@@ -2055,6 +2061,185 @@ bind(speedInput.FocusLost,function()
     speedInput.Text=tostring(state.speedValue)
     if state.speed then setSpeed(true) end
     say("Speed configurado: "..tostring(state.speedValue))
+end)
+
+
+-- COLETOR PASSIVO V32 - SO QUANDO O JOGADOR PASSA POR PERTO.
+-- Nunca teleporta, nunca move o jogador e nao dispara remotes desconhecidos.
+-- Tenta a interacao normal de itens que estao na sala atual.
+local collectCooldown=setmetatable({},{__mode="k"})
+local collectAttempts=0
+local collectLastMode="aguardando"
+local COLLECT_SCAN_INTERVAL=.22
+local COLLECT_RANGE=4.35
+
+local function collectItemCandidates()
+    local map=currentMap()
+    if not map then return {} end
+    local results={}
+    local seen={}
+    local function add(entry)
+        if entry and not seen[entry] and
+            (entry:IsA("BasePart") or entry:IsA("Model")) then
+            seen[entry]=true
+            table.insert(results,entry)
+        end
+    end
+    for _,obj in ipairs(getObjects("items")) do add(obj) end
+    -- Alguns eventos colocam suas moedas em pastas especificas.
+    for _,folderName in ipairs({"Collectibles","EventItems","Pickups","Currency","Currencies"}) do
+        local folder=map:FindFirstChild(folderName)
+        if folder then
+            for _,obj in ipairs(folder:GetChildren()) do
+                local name=obj.Name:lower()
+                if name:find("tape",1,true) or
+                    name:find("capsule",1,true) or
+                    name:find("currency",1,true) or
+                    name:find("basket",1,true) or
+                    name:find("ornament",1,true) or
+                    name:find("pumpkin",1,true) or
+                    name:find("collect",1,true) then
+                    add(obj)
+                end
+            end
+        end
+    end
+    return results
+end
+local function collectFocus(item)
+    -- Distancia medida do ponto interativo se houver prompt.
+    for _,o in ipairs(item:GetDescendants()) do
+        if o:IsA("ProximityPrompt") and o.Enabled then
+            local parent=o.Parent
+            local pos=(parent and parent:IsA("Attachment") and parent.WorldPosition)
+                or (parent and parent:IsA("BasePart") and parent.Position)
+            if pos then return pos,o end
+        end
+    end
+    return positionOf(item),nil
+end
+local function collectVisible(root,item,point)
+    if not root or not item or not point then return false end
+    if math.abs(root.Position.Y-point.Y)>6.5 then return false end
+    local delta=point-(root.Position+Vector3.new(0,1,0))
+    if delta.Magnitude<.35 then return true end
+    local p=RaycastParams.new()
+    p.FilterType=Enum.RaycastFilterType.Exclude
+    p.FilterDescendantsInstances=LP.Character and {LP.Character} or {}
+    local hit=workspace:Raycast(root.Position+Vector3.new(0,1,0),delta,p)
+    return not hit or hit.Instance==item or hit.Instance:IsDescendantOf(item)
+end
+local function collectNearMachine(root)
+    -- Impede que um E generico comece/cancele extracao em vez de pegar o item.
+    for _,machine in ipairs(getObjects("machines")) do
+        local pos=positionOf(machine)
+        if pos and (pos-root.Position).Magnitude<4.2 then return true end
+    end
+    return false
+end
+local function pressCollectE()
+    if type(keypress)=="function" and type(keyrelease)=="function" then
+        local ok=pcall(function()
+            keypress(0x45)
+            task.delay(.12,function()
+                pcall(function()keyrelease(0x45)end)
+            end)
+        end)
+        if ok then return true,"tecla E" end
+    end
+    local vim
+    pcall(function()vim=game:GetService("VirtualInputManager")end)
+    if vim then
+        local ok=pcall(function()
+            vim:SendKeyEvent(true,Enum.KeyCode.E,false,game)
+            task.delay(.12,function()
+                pcall(function()vim:SendKeyEvent(false,Enum.KeyCode.E,false,game)end)
+            end)
+        end)
+        if ok then return true,"E mobile" end
+    end
+    return false,"interacao E indisponivel"
+end
+local function collectTry(item,root,point,prompt)
+    if not item.Parent or not state.autoCollect or not live then return false,"desligado" end
+    if prompt and prompt.Enabled then
+        local limit=math.min(6,math.max(2.0,prompt.MaxActivationDistance+.15))
+        if (root.Position-point).Magnitude<=limit then
+            if type(fireproximityprompt)=="function" then
+                local ok=pcall(function()fireproximityprompt(prompt)end)
+                if ok then return true,"prompt" end
+            end
+            -- Fallback nativo para prompts sem a funcao do executor.
+            local ok=pcall(function()
+                prompt:InputHoldBegin()
+                task.delay(math.max(.10,prompt.HoldDuration+.05),function()
+                    pcall(function()prompt:InputHoldEnd()end)
+                end)
+            end)
+            if ok then return true,"hold prompt" end
+        end
+        return false,"fora do prompt"
+    end
+    -- O item pode utilizar colisao ou um ClickDetector para coleta.
+    for _,desc in ipairs(item:GetDescendants()) do
+        if desc:IsA("ClickDetector") and
+            type(fireclickdetector)=="function" then
+            local ok=pcall(function()fireclickdetector(desc)end)
+            if ok then return true,"click detector" end
+        elseif desc:IsA("TouchTransmitter") and
+            type(firetouchinterest)=="function" then
+            local part=desc.Parent
+            if part and part:IsA("BasePart") and
+                (root.Position-part.Position).Magnitude<=4 then
+                local ok=pcall(function()
+                    firetouchinterest(root,part,0)
+                    firetouchinterest(root,part,1)
+                end)
+                if ok then return true,"toque" end
+            end
+        end
+    end
+    -- Sem prompt especifico, so usa E MUITO PERTO e longe das maquinas.
+    if (root.Position-point).Magnitude<=3.1 and
+        not collectNearMachine(root) then
+        return pressCollectE()
+    end
+    return false,"aguardando aproximacao"
+end
+task.spawn(function()
+    while live do
+        if state.autoCollect then
+            local root=charRoot()
+            local hum=LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+            if root and hum and hum.Health>0 and not machineExtractingUI() then
+                local now=os.clock()
+                local chosen,chosenPoint,chosenPrompt,nearestDist=nil,nil,nil,math.huge
+                for _,item in ipairs(collectItemCandidates()) do
+                    local point,prompt=collectFocus(item)
+                    if point then
+                        local distance=(root.Position-point).Magnitude
+                        if distance<nearestDist and distance<COLLECT_RANGE and
+                            now-(collectCooldown[item] or -100)>1.1 and
+                            collectVisible(root,item,point) then
+                            chosen,chosenPoint,chosenPrompt,nearestDist=
+                                item,point,prompt,distance
+                        end
+                    end
+                end
+                if chosen then
+                    collectCooldown[chosen]=now
+                    local ok,how=collectTry(chosen,root,chosenPoint,chosenPrompt)
+                    if ok then
+                        collectAttempts=collectAttempts+1
+                        collectLastMode=how
+                    end
+                end
+            end
+            task.wait(COLLECT_SCAN_INTERVAL)
+        else
+            task.wait(.6)
+        end
+    end
 end)
 
 -- AUTO SKILLCHECK BETA (somente UI de PlayerGui; nao dispara remotes nem inventa acertos)
@@ -3690,6 +3875,7 @@ end)
 local function cleanup()
     if not live then return end
     state.autoPlay=false
+    state.autoCollect=false
     autoRunId=autoRunId+1
     stopNav()
     setSpeed(false)
