@@ -1875,8 +1875,7 @@ local function circleCandidates()
         if root:IsA("LayerCollector") and root.Enabled and
             root~=screen and root~=gui and
             root.Name~="HUD" and root.Name~="TouchGui" and
-            root.Name~="Chat" and root.Name~="BubbleChat" and
-            root.Name~="ScreenGui" then
+            root.Name~="Chat" and root.Name~="BubbleChat" then
             for _,o in ipairs(root:GetDescendants()) do
                 put(o)
                 if #records>=230 then break end
@@ -2255,8 +2254,9 @@ local function skillDiagnostic()
     local added=0
     for _,root in ipairs(PG:GetChildren()) do
         if root:IsA("LayerCollector") and root.Enabled and
-            root~=gui and root.Name~="HUD" and
-            root.Name~="TouchGui" and root.Name~="Chat" then
+            root~=gui and root.Name~="Skillchecks" and
+            root.Name~="HUD" and root.Name~="TouchGui" and
+            root.Name~="Chat" then
             table.insert(rows,"UI RAIZ: "..root:GetFullName())
             for _,o in ipairs(root:GetDescendants()) do
                 if added>=110 then break end
