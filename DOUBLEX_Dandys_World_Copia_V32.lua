@@ -132,223 +132,227 @@ end
 
 -- Interface Dandy Compacta: mesmo padrao visual do DOUBLEX HUB Universal V10.
 -- Tres abas independentes, pesquisa, minimizacao flutuante e controles mobile.
-local gui = inst("ScreenGui",{
-    Name="DOUBLEX_Dandy_GUI",ResetOnSpawn=false,IgnoreGuiInset=true,
-    DisplayOrder=35,ZIndexBehavior=Enum.ZIndexBehavior.Sibling
-},PG)
-local C={
-    bg=Color3.fromRGB(19,19,29),
-    card=Color3.fromRGB(30,29,44),
-    accent=Color3.fromRGB(25,139,255),
-    off=Color3.fromRGB(45,45,61),
-    white=Color3.fromRGB(236,231,250),
-    mute=Color3.fromRGB(174,168,194),
-    green=Color3.fromRGB(80,198,132),
-    danger=Color3.fromRGB(240,84,95)
-}
-local vp=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800,360)
-local w=math.min(342,math.max(255,vp.X-24))
-local h=math.min(322,math.max(245,vp.Y-34))
-local main=inst("Frame",{
-    Size=UDim2.fromOffset(w,h),Position=UDim2.new(.5,-w/2,.5,-h/2),
-    BackgroundColor3=C.bg,BorderSizePixel=0,Active=true
-},gui)
-round(main,13)
-inst("UIStroke",{Color=C.accent,Thickness=1,Transparency=.1},main)
-local top=inst("Frame",{
-    Size=UDim2.new(1,0,0,43),BackgroundColor3=C.card,
-    BorderSizePixel=0,Active=true
-},main)
-round(top,13)
-local title=inst("TextLabel",{
-    Position=UDim2.fromOffset(12,0),Size=UDim2.new(1,-101,1,0),
-    BackgroundTransparency=1,Text="DOUBLEX HUB | DANDY V32",
-    TextColor3=Color3.fromRGB(84,180,255),Font=Enum.Font.GothamBold,
-    TextSize=14,TextXAlignment=Enum.TextXAlignment.Left
-},top)
-local function topButton(text,x,action)
-    local b=inst("TextButton",{
-        Size=UDim2.fromOffset(31,29),Position=UDim2.new(1,x,0,7),
-        BackgroundColor3=text=="X" and Color3.fromRGB(163,52,77)
-            or Color3.fromRGB(22,88,172),
-        Text=text,TextColor3=C.white,Font=Enum.Font.GothamBold,
-        TextSize=17,BorderSizePixel=0
-    },top)
-    round(b,7)
-    bind(b.MouseButton1Click,action)
-    return b
-end
-local status=inst("TextLabel",{
-    Position=UDim2.fromOffset(9,48),Size=UDim2.new(1,-18,0,24),
-    BackgroundColor3=C.card,Text="Aguardando partida...",
-    TextWrapped=true,Font=Enum.Font.Gotham,TextSize=10,
-    TextColor3=C.mute,BorderSizePixel=0
-},main)
-round(status,6)
-local search=inst("TextBox",{
-    Position=UDim2.fromOffset(9,78),Size=UDim2.new(1,-18,0,29),
-    BackgroundColor3=C.card,Text="",PlaceholderText="Pesquisar funcionalidades...",
-    PlaceholderColor3=C.mute,ClearTextOnFocus=false,
-    TextColor3=C.white,Font=Enum.Font.Gotham,TextSize=12,
-    BorderSizePixel=0
-},main)
-round(search,8)
-local tabs=inst("ScrollingFrame",{
-    Position=UDim2.fromOffset(8,113),Size=UDim2.new(1,-16,0,31),
-    BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=0,
-    ScrollingDirection=Enum.ScrollingDirection.X,CanvasSize=UDim2.fromOffset(0,0)
-},main)
-local tabLayout=inst("UIListLayout",{
-    FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,5),
-    SortOrder=Enum.SortOrder.LayoutOrder
-},tabs)
-bind(tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"),function()
-    tabs.CanvasSize=UDim2.fromOffset(tabLayout.AbsoluteContentSize.X+5,0)
-end)
-local tabPages={}
-local tabButtons={}
-local categoryNames={
-    {id="ESP",label="ESP"},
-    {id="SOBREVIVENCIA",label="Sobrevivência + Speed"},
-    {id="VERIFICACOES",label="Verificações + Minijogos"}
-}
-for _,cat in ipairs(categoryNames) do
-    local b=inst("TextButton",{
-        Size=UDim2.fromOffset(cat.id=="ESP" and 56 or
-            (cat.id=="SOBREVIVENCIA" and 150 or 179),29),
-        BackgroundColor3=C.card,Text=cat.label,
-        TextColor3=C.white,Font=Enum.Font.GothamBold,
-        TextSize=11,BorderSizePixel=0
-    },tabs)
-    round(b,7)
-    tabButtons[cat.id]=b
-    local page=inst("ScrollingFrame",{
-        Name="Aba_"..cat.id,
-        Position=UDim2.fromOffset(9,150),Size=UDim2.new(1,-18,1,-181),
-        BackgroundTransparency=1,BorderSizePixel=0,
-        ScrollBarThickness=3,ScrollBarImageColor3=C.accent,
-        AutomaticCanvasSize=Enum.AutomaticSize.Y,
-        CanvasSize=UDim2.fromOffset(0,0),Visible=false
+-- A interface mantem apenas 13 referencias no escopo principal.
+local gui, C, main, topButton, status, foot, float, say, heading, addButton, buttonList, scroll, registerSearch
+do
+    gui = inst("ScreenGui",{
+        Name="DOUBLEX_Dandy_GUI",ResetOnSpawn=false,IgnoreGuiInset=true,
+        DisplayOrder=35,ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+    },PG)
+    C={
+        bg=Color3.fromRGB(19,19,29),
+        card=Color3.fromRGB(30,29,44),
+        accent=Color3.fromRGB(25,139,255),
+        off=Color3.fromRGB(45,45,61),
+        white=Color3.fromRGB(236,231,250),
+        mute=Color3.fromRGB(174,168,194),
+        green=Color3.fromRGB(80,198,132),
+        danger=Color3.fromRGB(240,84,95)
+    }
+    local vp=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800,360)
+    local w=math.min(342,math.max(255,vp.X-24))
+    local h=math.min(322,math.max(245,vp.Y-34))
+    main=inst("Frame",{
+        Size=UDim2.fromOffset(w,h),Position=UDim2.new(.5,-w/2,.5,-h/2),
+        BackgroundColor3=C.bg,BorderSizePixel=0,Active=true
+    },gui)
+    round(main,13)
+    inst("UIStroke",{Color=C.accent,Thickness=1,Transparency=.1},main)
+    local top=inst("Frame",{
+        Size=UDim2.new(1,0,0,43),BackgroundColor3=C.card,
+        BorderSizePixel=0,Active=true
     },main)
-    inst("UIListLayout",{
-        Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder
-    },page)
-    inst("UIPadding",{PaddingBottom=UDim.new(0,4)},page)
-    tabPages[cat.id]=page
-end
-local foot=inst("TextLabel",{
-    Position=UDim2.new(0,9,1,-27),Size=UDim2.new(1,-18,0,23),
-    BackgroundColor3=C.card,BorderSizePixel=0,
-    Text="Tudo OFF ao iniciar  |  X fecha o hub",
-    TextWrapped=true,TextColor3=C.mute,Font=Enum.Font.Gotham,
-    TextSize=10
-},main)
-round(foot,7)
-local float=inst("TextButton",{
-    Name="DOUBLEX_Bubble",Size=UDim2.fromOffset(52,52),
-    Position=UDim2.new(0,12,.5,-26),BackgroundColor3=C.accent,
-    Text="DX",TextColor3=C.white,Font=Enum.Font.GothamBold,
-    TextSize=18,Visible=false,BorderSizePixel=0,Active=true
-},gui)
-round(float,26)
-inst("UIStroke",{Color=Color3.fromRGB(65,185,255),Thickness=1},float)
-local function drag(handle,target)
-    local moving,started,origin=false,nil,nil
-    bind(handle.InputBegan,function(input)
-        if input.UserInputType==Enum.UserInputType.Touch or
-            input.UserInputType==Enum.UserInputType.MouseButton1 then
-            moving=true;started=input.Position;origin=target.Position
-            local c
-            c=input.Changed:Connect(function()
-                if input.UserInputState==Enum.UserInputState.End then
-                    moving=false;c:Disconnect()
-                end
-            end)
-        end
+    round(top,13)
+    local title=inst("TextLabel",{
+        Position=UDim2.fromOffset(12,0),Size=UDim2.new(1,-101,1,0),
+        BackgroundTransparency=1,Text="DOUBLEX HUB | DANDY V32",
+        TextColor3=Color3.fromRGB(84,180,255),Font=Enum.Font.GothamBold,
+        TextSize=14,TextXAlignment=Enum.TextXAlignment.Left
+    },top)
+    topButton=function(text,x,action)
+        local b=inst("TextButton",{
+            Size=UDim2.fromOffset(31,29),Position=UDim2.new(1,x,0,7),
+            BackgroundColor3=text=="X" and Color3.fromRGB(163,52,77)
+                or Color3.fromRGB(22,88,172),
+            Text=text,TextColor3=C.white,Font=Enum.Font.GothamBold,
+            TextSize=17,BorderSizePixel=0
+        },top)
+        round(b,7)
+        bind(b.MouseButton1Click,action)
+        return b
+    end
+    status=inst("TextLabel",{
+        Position=UDim2.fromOffset(9,48),Size=UDim2.new(1,-18,0,24),
+        BackgroundColor3=C.card,Text="Aguardando partida...",
+        TextWrapped=true,Font=Enum.Font.Gotham,TextSize=10,
+        TextColor3=C.mute,BorderSizePixel=0
+    },main)
+    round(status,6)
+    local search=inst("TextBox",{
+        Position=UDim2.fromOffset(9,78),Size=UDim2.new(1,-18,0,29),
+        BackgroundColor3=C.card,Text="",PlaceholderText="Pesquisar funcionalidades...",
+        PlaceholderColor3=C.mute,ClearTextOnFocus=false,
+        TextColor3=C.white,Font=Enum.Font.Gotham,TextSize=12,
+        BorderSizePixel=0
+    },main)
+    round(search,8)
+    local tabs=inst("ScrollingFrame",{
+        Position=UDim2.fromOffset(8,113),Size=UDim2.new(1,-16,0,31),
+        BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=0,
+        ScrollingDirection=Enum.ScrollingDirection.X,CanvasSize=UDim2.fromOffset(0,0)
+    },main)
+    local tabLayout=inst("UIListLayout",{
+        FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,5),
+        SortOrder=Enum.SortOrder.LayoutOrder
+    },tabs)
+    bind(tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"),function()
+        tabs.CanvasSize=UDim2.fromOffset(tabLayout.AbsoluteContentSize.X+5,0)
     end)
-    bind(UserInputService.InputChanged,function(input)
-        if moving and
-            (input.UserInputType==Enum.UserInputType.MouseMovement or
-             input.UserInputType==Enum.UserInputType.Touch) and
-             started and origin then
-            local d=input.Position-started
-            target.Position=UDim2.new(origin.X.Scale,origin.X.Offset+d.X,
-                origin.Y.Scale,origin.Y.Offset+d.Y)
+    local tabPages={}
+    local tabButtons={}
+    local categoryNames={
+        {id="ESP",label="ESP"},
+        {id="SOBREVIVENCIA",label="Sobrevivência + Speed"},
+        {id="VERIFICACOES",label="Verificações + Minijogos"}
+    }
+    for _,cat in ipairs(categoryNames) do
+        local b=inst("TextButton",{
+            Size=UDim2.fromOffset(cat.id=="ESP" and 56 or
+                (cat.id=="SOBREVIVENCIA" and 150 or 179),29),
+            BackgroundColor3=C.card,Text=cat.label,
+            TextColor3=C.white,Font=Enum.Font.GothamBold,
+            TextSize=11,BorderSizePixel=0
+        },tabs)
+        round(b,7)
+        tabButtons[cat.id]=b
+        local page=inst("ScrollingFrame",{
+            Name="Aba_"..cat.id,
+            Position=UDim2.fromOffset(9,150),Size=UDim2.new(1,-18,1,-181),
+            BackgroundTransparency=1,BorderSizePixel=0,
+            ScrollBarThickness=3,ScrollBarImageColor3=C.accent,
+            AutomaticCanvasSize=Enum.AutomaticSize.Y,
+            CanvasSize=UDim2.fromOffset(0,0),Visible=false
+        },main)
+        inst("UIListLayout",{
+            Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder
+        },page)
+        inst("UIPadding",{PaddingBottom=UDim.new(0,4)},page)
+        tabPages[cat.id]=page
+    end
+    foot=inst("TextLabel",{
+        Position=UDim2.new(0,9,1,-27),Size=UDim2.new(1,-18,0,23),
+        BackgroundColor3=C.card,BorderSizePixel=0,
+        Text="Tudo OFF ao iniciar  |  X fecha o hub",
+        TextWrapped=true,TextColor3=C.mute,Font=Enum.Font.Gotham,
+        TextSize=10
+    },main)
+    round(foot,7)
+    float=inst("TextButton",{
+        Name="DOUBLEX_Bubble",Size=UDim2.fromOffset(52,52),
+        Position=UDim2.new(0,12,.5,-26),BackgroundColor3=C.accent,
+        Text="DX",TextColor3=C.white,Font=Enum.Font.GothamBold,
+        TextSize=18,Visible=false,BorderSizePixel=0,Active=true
+    },gui)
+    round(float,26)
+    inst("UIStroke",{Color=Color3.fromRGB(65,185,255),Thickness=1},float)
+    local function drag(handle,target)
+        local moving,started,origin=false,nil,nil
+        bind(handle.InputBegan,function(input)
+            if input.UserInputType==Enum.UserInputType.Touch or
+                input.UserInputType==Enum.UserInputType.MouseButton1 then
+                moving=true;started=input.Position;origin=target.Position
+                local c
+                c=input.Changed:Connect(function()
+                    if input.UserInputState==Enum.UserInputState.End then
+                        moving=false;c:Disconnect()
+                    end
+                end)
+            end
+        end)
+        bind(UserInputService.InputChanged,function(input)
+            if moving and
+                (input.UserInputType==Enum.UserInputType.MouseMovement or
+                 input.UserInputType==Enum.UserInputType.Touch) and
+                 started and origin then
+                local d=input.Position-started
+                target.Position=UDim2.new(origin.X.Scale,origin.X.Offset+d.X,
+                    origin.Y.Scale,origin.Y.Offset+d.Y)
+            end
+        end)
+    end
+    drag(top,main)
+    drag(float,float)
+    say=function(msg)
+        if live then foot.Text=msg end
+    end
+    buttonList={}
+    local activeCategory="ESP"
+    scroll=tabPages.ESP
+    local searchRows={}
+    registerSearch=function(obj,label,category)
+        table.insert(searchRows,{obj=obj,label=string.lower(label),
+            category=category or activeCategory})
+    end
+    local function applySearch()
+        local query=string.lower(tostring(search.Text or ""))
+        for _,rec in ipairs(searchRows) do
+            rec.obj.Visible=(query=="" or rec.label:find(query,1,true)~=nil)
         end
-    end)
-end
-drag(top,main)
-drag(float,float)
-local function say(msg)
-    if live then foot.Text=msg end
-end
-local buttonList={}
-local activeCategory="ESP"
-local scroll=tabPages.ESP
-local searchRows={}
-local function registerSearch(obj,label,category)
-    table.insert(searchRows,{obj=obj,label=string.lower(label),
-        category=category or activeCategory})
-end
-local function applySearch()
-    local query=string.lower(tostring(search.Text or ""))
-    for _,rec in ipairs(searchRows) do
-        rec.obj.Visible=(query=="" or rec.label:find(query,1,true)~=nil)
     end
-end
-local function showTab(category)
-    activeCategory=category
-    for id,page in pairs(tabPages) do
-        page.Visible=(id==category)
-        tabButtons[id].BackgroundColor3=id==category and C.accent or C.card
+    local function showTab(category)
+        activeCategory=category
+        for id,page in pairs(tabPages) do
+            page.Visible=(id==category)
+            tabButtons[id].BackgroundColor3=id==category and C.accent or C.card
+        end
+        search.Text=""
+        applySearch()
     end
-    search.Text=""
-    applySearch()
-end
-for _,cat in ipairs(categoryNames) do
-    local id=cat.id
-    bind(tabButtons[id].MouseButton1Click,function()showTab(id)end)
-end
-bind(search:GetPropertyChangedSignal("Text"),applySearch)
-showTab("ESP")
-local function heading(text)
-    if text=="LOCALIZADOR (ESP)" then
-        activeCategory="ESP"
-    elseif text=="SOBREVIVENCIA" or text=="VELOCIDADE" then
-        activeCategory="SOBREVIVENCIA"
-    else
-        activeCategory="VERIFICACOES"
+    for _,cat in ipairs(categoryNames) do
+        local id=cat.id
+        bind(tabButtons[id].MouseButton1Click,function()showTab(id)end)
     end
-    scroll=tabPages[activeCategory]
-    local t=inst("TextLabel",{
-        Size=UDim2.new(1,-4,0,20),BackgroundTransparency=1,
-        Text="  "..text,TextColor3=C.mute,TextSize=11,
-        Font=Enum.Font.GothamBold,
-        TextXAlignment=Enum.TextXAlignment.Left
-    },scroll)
-    registerSearch(t,text)
-end
-local function addButton(label,fn,key)
-    local b=inst("TextButton",{
-        Size=UDim2.new(1,-4,0,34),BackgroundColor3=C.off,
-        Text=label,TextColor3=C.white,Font=Enum.Font.GothamMedium,
-        TextSize=12,BorderSizePixel=0,TextWrapped=true
-    },scroll)
-    round(b,8)
-    local function redraw()
-        if not key then return end
-        b.Text=(state[key] and "[ON]  " or "[OFF]  ")..label
-        b.BackgroundColor3=state[key] and C.accent or C.off
+    bind(search:GetPropertyChangedSignal("Text"),applySearch)
+    showTab("ESP")
+    heading=function(text)
+        if text=="LOCALIZADOR (ESP)" then
+            activeCategory="ESP"
+        elseif text=="SOBREVIVENCIA" or text=="VELOCIDADE" then
+            activeCategory="SOBREVIVENCIA"
+        else
+            activeCategory="VERIFICACOES"
+        end
+        scroll=tabPages[activeCategory]
+        local t=inst("TextLabel",{
+            Size=UDim2.new(1,-4,0,20),BackgroundTransparency=1,
+            Text="  "..text,TextColor3=C.mute,TextSize=11,
+            Font=Enum.Font.GothamBold,
+            TextXAlignment=Enum.TextXAlignment.Left
+        },scroll)
+        registerSearch(t,text)
     end
-    redraw()
-    registerSearch(b,label)
-    bind(b.MouseButton1Click,function()
-        if not live then return end
-        local ok,err=pcall(fn)
-        if not ok then say("Falha: "..tostring(err):sub(1,75)) end
+    addButton=function(label,fn,key)
+        local b=inst("TextButton",{
+            Size=UDim2.new(1,-4,0,34),BackgroundColor3=C.off,
+            Text=label,TextColor3=C.white,Font=Enum.Font.GothamMedium,
+            TextSize=12,BorderSizePixel=0,TextWrapped=true
+        },scroll)
+        round(b,8)
+        local function redraw()
+            if not key then return end
+            b.Text=(state[key] and "[ON]  " or "[OFF]  ")..label
+            b.BackgroundColor3=state[key] and C.accent or C.off
+        end
         redraw()
-    end)
-    if key then buttonList[key]=redraw end
+        registerSearch(b,label)
+        bind(b.MouseButton1Click,function()
+            if not live then return end
+            local ok,err=pcall(fn)
+            if not ok then say("Falha: "..tostring(err):sub(1,75)) end
+            redraw()
+        end)
+        if key then buttonList[key]=redraw end
+    end
 end
 local colors={monsters=Color3.fromRGB(252,85,100),machines=Color3.fromRGB(85,217,165),
     items=Color3.fromRGB(248,208,88),elevator=Color3.fromRGB(100,170,255),
@@ -2064,183 +2068,186 @@ bind(speedInput.FocusLost,function()
 end)
 
 
--- COLETOR PASSIVO V32 - SO QUANDO O JOGADOR PASSA POR PERTO.
--- Nunca teleporta, nunca move o jogador e nao dispara remotes desconhecidos.
--- Tenta a interacao normal de itens que estao na sala atual.
-local collectCooldown=setmetatable({},{__mode="k"})
-local collectAttempts=0
-local collectLastMode="aguardando"
-local COLLECT_SCAN_INTERVAL=.22
-local COLLECT_RANGE=4.35
+do
+    -- COLETOR PASSIVO V32 - SO QUANDO O JOGADOR PASSA POR PERTO.
+    -- Nunca teleporta, nunca move o jogador e nao dispara remotes desconhecidos.
+    -- Tenta a interacao normal de itens que estao na sala atual.
+    local collectCooldown=setmetatable({},{__mode="k"})
+    local collectAttempts=0
+    local collectLastMode="aguardando"
+    local COLLECT_SCAN_INTERVAL=.22
+    local COLLECT_RANGE=4.35
 
-local function collectItemCandidates()
-    local map=currentMap()
-    if not map then return {} end
-    local results={}
-    local seen={}
-    local function add(entry)
-        if entry and not seen[entry] and
-            (entry:IsA("BasePart") or entry:IsA("Model")) then
-            seen[entry]=true
-            table.insert(results,entry)
+    local function collectItemCandidates()
+        local map=currentMap()
+        if not map then return {} end
+        local results={}
+        local seen={}
+        local function add(entry)
+            if entry and not seen[entry] and
+                (entry:IsA("BasePart") or entry:IsA("Model")) then
+                seen[entry]=true
+                table.insert(results,entry)
+            end
         end
-    end
-    for _,obj in ipairs(getObjects("items")) do add(obj) end
-    -- Alguns eventos colocam suas moedas em pastas especificas.
-    for _,folderName in ipairs({"Collectibles","EventItems","Pickups","Currency","Currencies"}) do
-        local folder=map:FindFirstChild(folderName)
-        if folder then
-            for _,obj in ipairs(folder:GetChildren()) do
-                local name=obj.Name:lower()
-                if name:find("tape",1,true) or
-                    name:find("capsule",1,true) or
-                    name:find("currency",1,true) or
-                    name:find("basket",1,true) or
-                    name:find("ornament",1,true) or
-                    name:find("pumpkin",1,true) or
-                    name:find("collect",1,true) then
-                    add(obj)
+        for _,obj in ipairs(getObjects("items")) do add(obj) end
+        -- Alguns eventos colocam suas moedas em pastas especificas.
+        for _,folderName in ipairs({"Collectibles","EventItems","Pickups","Currency","Currencies"}) do
+            local folder=map:FindFirstChild(folderName)
+            if folder then
+                for _,obj in ipairs(folder:GetChildren()) do
+                    local name=obj.Name:lower()
+                    if name:find("tape",1,true) or
+                        name:find("capsule",1,true) or
+                        name:find("currency",1,true) or
+                        name:find("basket",1,true) or
+                        name:find("ornament",1,true) or
+                        name:find("pumpkin",1,true) or
+                        name:find("collect",1,true) then
+                        add(obj)
+                    end
                 end
             end
         end
+        return results
     end
-    return results
-end
-local function collectFocus(item)
-    -- Distancia medida do ponto interativo se houver prompt.
-    for _,o in ipairs(item:GetDescendants()) do
-        if o:IsA("ProximityPrompt") and o.Enabled then
-            local parent=o.Parent
-            local pos=(parent and parent:IsA("Attachment") and parent.WorldPosition)
-                or (parent and parent:IsA("BasePart") and parent.Position)
-            if pos then return pos,o end
-        end
-    end
-    return positionOf(item),nil
-end
-local function collectVisible(root,item,point)
-    if not root or not item or not point then return false end
-    if math.abs(root.Position.Y-point.Y)>6.5 then return false end
-    local delta=point-(root.Position+Vector3.new(0,1,0))
-    if delta.Magnitude<.35 then return true end
-    local p=RaycastParams.new()
-    p.FilterType=Enum.RaycastFilterType.Exclude
-    p.FilterDescendantsInstances=LP.Character and {LP.Character} or {}
-    local hit=workspace:Raycast(root.Position+Vector3.new(0,1,0),delta,p)
-    return not hit or hit.Instance==item or hit.Instance:IsDescendantOf(item)
-end
-local function collectNearMachine(root)
-    -- Impede que um E generico comece/cancele extracao em vez de pegar o item.
-    for _,machine in ipairs(getObjects("machines")) do
-        local pos=positionOf(machine)
-        if pos and (pos-root.Position).Magnitude<4.2 then return true end
-    end
-    return false
-end
-local function pressCollectE()
-    if type(keypress)=="function" and type(keyrelease)=="function" then
-        local ok=pcall(function()
-            keypress(0x45)
-            task.delay(.12,function()
-                pcall(function()keyrelease(0x45)end)
-            end)
-        end)
-        if ok then return true,"tecla E" end
-    end
-    local vim
-    pcall(function()vim=game:GetService("VirtualInputManager")end)
-    if vim then
-        local ok=pcall(function()
-            vim:SendKeyEvent(true,Enum.KeyCode.E,false,game)
-            task.delay(.12,function()
-                pcall(function()vim:SendKeyEvent(false,Enum.KeyCode.E,false,game)end)
-            end)
-        end)
-        if ok then return true,"E mobile" end
-    end
-    return false,"interacao E indisponivel"
-end
-local function collectTry(item,root,point,prompt)
-    if not item.Parent or not state.autoCollect or not live then return false,"desligado" end
-    if prompt and prompt.Enabled then
-        local limit=math.min(6,math.max(2.0,prompt.MaxActivationDistance+.15))
-        if (root.Position-point).Magnitude<=limit then
-            if type(fireproximityprompt)=="function" then
-                local ok=pcall(function()fireproximityprompt(prompt)end)
-                if ok then return true,"prompt" end
+    local function collectFocus(item)
+        -- Distancia medida do ponto interativo se houver prompt.
+        for _,o in ipairs(item:GetDescendants()) do
+            if o:IsA("ProximityPrompt") and o.Enabled then
+                local parent=o.Parent
+                local pos=(parent and parent:IsA("Attachment") and parent.WorldPosition)
+                    or (parent and parent:IsA("BasePart") and parent.Position)
+                if pos then return pos,o end
             end
-            -- Fallback nativo para prompts sem a funcao do executor.
+        end
+        return positionOf(item),nil
+    end
+    local function collectVisible(root,item,point)
+        if not root or not item or not point then return false end
+        if math.abs(root.Position.Y-point.Y)>6.5 then return false end
+        local delta=point-(root.Position+Vector3.new(0,1,0))
+        if delta.Magnitude<.35 then return true end
+        local p=RaycastParams.new()
+        p.FilterType=Enum.RaycastFilterType.Exclude
+        p.FilterDescendantsInstances=LP.Character and {LP.Character} or {}
+        local hit=workspace:Raycast(root.Position+Vector3.new(0,1,0),delta,p)
+        return not hit or hit.Instance==item or hit.Instance:IsDescendantOf(item)
+    end
+    local function collectNearMachine(root)
+        -- Impede que um E generico comece/cancele extracao em vez de pegar o item.
+        for _,machine in ipairs(getObjects("machines")) do
+            local pos=positionOf(machine)
+            if pos and (pos-root.Position).Magnitude<4.2 then return true end
+        end
+        return false
+    end
+    local function pressCollectE()
+        if type(keypress)=="function" and type(keyrelease)=="function" then
             local ok=pcall(function()
-                prompt:InputHoldBegin()
-                task.delay(math.max(.10,prompt.HoldDuration+.05),function()
-                    pcall(function()prompt:InputHoldEnd()end)
+                keypress(0x45)
+                task.delay(.12,function()
+                    pcall(function()keyrelease(0x45)end)
                 end)
             end)
-            if ok then return true,"hold prompt" end
+            if ok then return true,"tecla E" end
         end
-        return false,"fora do prompt"
-    end
-    -- O item pode utilizar colisao ou um ClickDetector para coleta.
-    for _,desc in ipairs(item:GetDescendants()) do
-        if desc:IsA("ClickDetector") and
-            type(fireclickdetector)=="function" then
-            local ok=pcall(function()fireclickdetector(desc)end)
-            if ok then return true,"click detector" end
-        elseif desc:IsA("TouchTransmitter") and
-            type(firetouchinterest)=="function" then
-            local part=desc.Parent
-            if part and part:IsA("BasePart") and
-                (root.Position-part.Position).Magnitude<=4 then
-                local ok=pcall(function()
-                    firetouchinterest(root,part,0)
-                    firetouchinterest(root,part,1)
+        local vim
+        pcall(function()vim=game:GetService("VirtualInputManager")end)
+        if vim then
+            local ok=pcall(function()
+                vim:SendKeyEvent(true,Enum.KeyCode.E,false,game)
+                task.delay(.12,function()
+                    pcall(function()vim:SendKeyEvent(false,Enum.KeyCode.E,false,game)end)
                 end)
-                if ok then return true,"toque" end
+            end)
+            if ok then return true,"E mobile" end
+        end
+        return false,"interacao E indisponivel"
+    end
+    local function collectTry(item,root,point,prompt)
+        if not item.Parent or not state.autoCollect or not live then return false,"desligado" end
+        if prompt and prompt.Enabled then
+            local limit=math.min(6,math.max(2.0,prompt.MaxActivationDistance+.15))
+            if (root.Position-point).Magnitude<=limit then
+                if type(fireproximityprompt)=="function" then
+                    local ok=pcall(function()fireproximityprompt(prompt)end)
+                    if ok then return true,"prompt" end
+                end
+                -- Fallback nativo para prompts sem a funcao do executor.
+                local ok=pcall(function()
+                    prompt:InputHoldBegin()
+                    task.delay(math.max(.10,prompt.HoldDuration+.05),function()
+                        pcall(function()prompt:InputHoldEnd()end)
+                    end)
+                end)
+                if ok then return true,"hold prompt" end
+            end
+            return false,"fora do prompt"
+        end
+        -- O item pode utilizar colisao ou um ClickDetector para coleta.
+        for _,desc in ipairs(item:GetDescendants()) do
+            if desc:IsA("ClickDetector") and
+                type(fireclickdetector)=="function" then
+                local ok=pcall(function()fireclickdetector(desc)end)
+                if ok then return true,"click detector" end
+            elseif desc:IsA("TouchTransmitter") and
+                type(firetouchinterest)=="function" then
+                local part=desc.Parent
+                if part and part:IsA("BasePart") and
+                    (root.Position-part.Position).Magnitude<=4 then
+                    local ok=pcall(function()
+                        firetouchinterest(root,part,0)
+                        firetouchinterest(root,part,1)
+                    end)
+                    if ok then return true,"toque" end
+                end
             end
         end
+        -- Sem prompt especifico, so usa E MUITO PERTO e longe das maquinas.
+        if (root.Position-point).Magnitude<=3.1 and
+            not collectNearMachine(root) then
+            return pressCollectE()
+        end
+        return false,"aguardando aproximacao"
     end
-    -- Sem prompt especifico, so usa E MUITO PERTO e longe das maquinas.
-    if (root.Position-point).Magnitude<=3.1 and
-        not collectNearMachine(root) then
-        return pressCollectE()
-    end
-    return false,"aguardando aproximacao"
-end
-task.spawn(function()
-    while live do
-        if state.autoCollect then
-            local root=charRoot()
-            local hum=LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
-            if root and hum and hum.Health>0 and not machineExtractingUI() then
-                local now=os.clock()
-                local chosen,chosenPoint,chosenPrompt,nearestDist=nil,nil,nil,math.huge
-                for _,item in ipairs(collectItemCandidates()) do
-                    local point,prompt=collectFocus(item)
-                    if point then
-                        local distance=(root.Position-point).Magnitude
-                        if distance<nearestDist and distance<COLLECT_RANGE and
-                            now-(collectCooldown[item] or -100)>1.1 and
-                            collectVisible(root,item,point) then
-                            chosen,chosenPoint,chosenPrompt,nearestDist=
-                                item,point,prompt,distance
+    task.spawn(function()
+        while live do
+            if state.autoCollect then
+                local root=charRoot()
+                local hum=LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+                if root and hum and hum.Health>0 and not machineExtractingUI() then
+                    local now=os.clock()
+                    local chosen,chosenPoint,chosenPrompt,nearestDist=nil,nil,nil,math.huge
+                    for _,item in ipairs(collectItemCandidates()) do
+                        local point,prompt=collectFocus(item)
+                        if point then
+                            local distance=(root.Position-point).Magnitude
+                            if distance<nearestDist and distance<COLLECT_RANGE and
+                                now-(collectCooldown[item] or -100)>1.1 and
+                                collectVisible(root,item,point) then
+                                chosen,chosenPoint,chosenPrompt,nearestDist=
+                                    item,point,prompt,distance
+                            end
+                        end
+                    end
+                    if chosen then
+                        collectCooldown[chosen]=now
+                        local ok,how=collectTry(chosen,root,chosenPoint,chosenPrompt)
+                        if ok then
+                            collectAttempts=collectAttempts+1
+                            collectLastMode=how
                         end
                     end
                 end
-                if chosen then
-                    collectCooldown[chosen]=now
-                    local ok,how=collectTry(chosen,root,chosenPoint,chosenPrompt)
-                    if ok then
-                        collectAttempts=collectAttempts+1
-                        collectLastMode=how
-                    end
-                end
+                task.wait(COLLECT_SCAN_INTERVAL)
+            else
+                task.wait(.6)
             end
-            task.wait(COLLECT_SCAN_INTERVAL)
-        else
-            task.wait(.6)
         end
-    end
-end)
+    end)
+
+end
 
 -- AUTO SKILLCHECK BETA (somente UI de PlayerGui; nao dispara remotes nem inventa acertos)
 -- O jogo pode desenhar a barra com imagens nao divididas em Frames. Sem indicador e
