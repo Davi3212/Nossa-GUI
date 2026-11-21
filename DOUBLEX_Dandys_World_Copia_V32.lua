@@ -130,72 +130,133 @@ local function nearest(kind)
     return best,bestDistance
 end
 
+-- Interface Dandy Compacta: mesmo padrao visual do DOUBLEX HUB Universal V10.
+-- Tres abas independentes, pesquisa, minimizacao flutuante e controles mobile.
 local gui = inst("ScreenGui",{
-    Name="DOUBLEX_Dandy_GUI",ResetOnSpawn=false,IgnoreGuiInset=false,
+    Name="DOUBLEX_Dandy_GUI",ResetOnSpawn=false,IgnoreGuiInset=true,
     DisplayOrder=35,ZIndexBehavior=Enum.ZIndexBehavior.Sibling
 },PG)
-local C={bg=Color3.fromRGB(20,22,31),card=Color3.fromRGB(30,33,44),
-    accent=Color3.fromRGB(133,90,245),off=Color3.fromRGB(53,57,71),
-    white=Color3.fromRGB(246,246,251),mute=Color3.fromRGB(186,190,206),
-    green=Color3.fromRGB(80,198,132),danger=Color3.fromRGB(240,84,95)}
+local C={
+    bg=Color3.fromRGB(19,19,29),
+    card=Color3.fromRGB(30,29,44),
+    accent=Color3.fromRGB(25,139,255),
+    off=Color3.fromRGB(45,45,61),
+    white=Color3.fromRGB(236,231,250),
+    mute=Color3.fromRGB(174,168,194),
+    green=Color3.fromRGB(80,198,132),
+    danger=Color3.fromRGB(240,84,95)
+}
+local vp=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800,360)
+local w=math.min(342,math.max(255,vp.X-24))
+local h=math.min(322,math.max(245,vp.Y-34))
 local main=inst("Frame",{
-    Size=UDim2.fromOffset(282,316),Position=UDim2.new(1,-293,.5,-158),
+    Size=UDim2.fromOffset(w,h),Position=UDim2.new(.5,-w/2,.5,-h/2),
     BackgroundColor3=C.bg,BorderSizePixel=0,Active=true
 },gui)
-round(main,11)
-inst("UIStroke",{Color=C.accent,Thickness=1,Transparency=.25},main)
-local top=inst("Frame",{Size=UDim2.new(1,0,0,42),BackgroundTransparency=1,Active=true},main)
+round(main,13)
+inst("UIStroke",{Color=C.accent,Thickness=1,Transparency=.1},main)
+local top=inst("Frame",{
+    Size=UDim2.new(1,0,0,43),BackgroundColor3=C.card,
+    BorderSizePixel=0,Active=true
+},main)
+round(top,13)
 local title=inst("TextLabel",{
-    Position=UDim2.fromOffset(11,3),Size=UDim2.new(1,-83,0,20),
-    BackgroundTransparency=1,Text="DOUBLEX  |  DANDY'S WORLD",
-    Font=Enum.Font.GothamBold,TextSize=13,TextColor3=C.white,TextXAlignment=Enum.TextXAlignment.Left
-},top)
-inst("TextLabel",{
-    Position=UDim2.fromOffset(12,22),Size=UDim2.new(1,-84,0,15),
-    BackgroundTransparency=1,Text="v32.0  •  Delta Mobile  •  Tudo OFF",
-    Font=Enum.Font.Gotham,TextSize=10,TextColor3=C.mute,TextXAlignment=Enum.TextXAlignment.Left
+    Position=UDim2.fromOffset(12,0),Size=UDim2.new(1,-101,1,0),
+    BackgroundTransparency=1,Text="DOUBLEX HUB | DANDY V32",
+    TextColor3=Color3.fromRGB(84,180,255),Font=Enum.Font.GothamBold,
+    TextSize=14,TextXAlignment=Enum.TextXAlignment.Left
 },top)
 local function topButton(text,x,action)
     local b=inst("TextButton",{
-        Size=UDim2.fromOffset(29,28),Position=UDim2.new(1,x,0,7),
-        BackgroundColor3=C.card,Text=text,TextColor3=C.white,
-        Font=Enum.Font.GothamBold,TextSize=16,BorderSizePixel=0
+        Size=UDim2.fromOffset(31,29),Position=UDim2.new(1,x,0,7),
+        BackgroundColor3=text=="X" and Color3.fromRGB(163,52,77)
+            or Color3.fromRGB(22,88,172),
+        Text=text,TextColor3=C.white,Font=Enum.Font.GothamBold,
+        TextSize=17,BorderSizePixel=0
     },top)
     round(b,7)
     bind(b.MouseButton1Click,action)
     return b
 end
 local status=inst("TextLabel",{
-    Position=UDim2.fromOffset(9,43),Size=UDim2.new(1,-18,0,36),
-    BackgroundColor3=C.card,Text="Aguardando partida...",TextWrapped=true,
-    Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.mute,BorderSizePixel=0
+    Position=UDim2.fromOffset(9,48),Size=UDim2.new(1,-18,0,24),
+    BackgroundColor3=C.card,Text="Aguardando partida...",
+    TextWrapped=true,Font=Enum.Font.Gotham,TextSize=10,
+    TextColor3=C.mute,BorderSizePixel=0
 },main)
-round(status,7)
-local scroll=inst("ScrollingFrame",{
-    Position=UDim2.fromOffset(8,84),Size=UDim2.new(1,-16,0,192),
-    ScrollBarThickness=3,ScrollBarImageColor3=C.accent,
-    BackgroundTransparency=1,BorderSizePixel=0,CanvasSize=UDim2.fromOffset(0,0),
-    AutomaticCanvasSize=Enum.AutomaticSize.Y
+round(status,6)
+local search=inst("TextBox",{
+    Position=UDim2.fromOffset(9,78),Size=UDim2.new(1,-18,0,29),
+    BackgroundColor3=C.card,Text="",PlaceholderText="Pesquisar funcionalidades...",
+    PlaceholderColor3=C.mute,ClearTextOnFocus=false,
+    TextColor3=C.white,Font=Enum.Font.Gotham,TextSize=12,
+    BorderSizePixel=0
 },main)
-local layout=inst("UIListLayout",{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder},scroll)
-inst("UIPadding",{PaddingBottom=UDim.new(0,4)},scroll)
+round(search,8)
+local tabs=inst("ScrollingFrame",{
+    Position=UDim2.fromOffset(8,113),Size=UDim2.new(1,-16,0,31),
+    BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=0,
+    ScrollingDirection=Enum.ScrollingDirection.X,CanvasSize=UDim2.fromOffset(0,0)
+},main)
+local tabLayout=inst("UIListLayout",{
+    FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,5),
+    SortOrder=Enum.SortOrder.LayoutOrder
+},tabs)
+bind(tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"),function()
+    tabs.CanvasSize=UDim2.fromOffset(tabLayout.AbsoluteContentSize.X+5,0)
+end)
+local tabPages={}
+local tabButtons={}
+local categoryNames={
+    {id="ESP",label="ESP"},
+    {id="SOBREVIVENCIA",label="Sobrevivência + Speed"},
+    {id="VERIFICACOES",label="Verificações + Minijogos"}
+}
+for _,cat in ipairs(categoryNames) do
+    local b=inst("TextButton",{
+        Size=UDim2.fromOffset(cat.id=="ESP" and 56 or
+            (cat.id=="SOBREVIVENCIA" and 150 or 179),29),
+        BackgroundColor3=C.card,Text=cat.label,
+        TextColor3=C.white,Font=Enum.Font.GothamBold,
+        TextSize=11,BorderSizePixel=0
+    },tabs)
+    round(b,7)
+    tabButtons[cat.id]=b
+    local page=inst("ScrollingFrame",{
+        Name="Aba_"..cat.id,
+        Position=UDim2.fromOffset(9,150),Size=UDim2.new(1,-18,1,-181),
+        BackgroundTransparency=1,BorderSizePixel=0,
+        ScrollBarThickness=3,ScrollBarImageColor3=C.accent,
+        AutomaticCanvasSize=Enum.AutomaticSize.Y,
+        CanvasSize=UDim2.fromOffset(0,0),Visible=false
+    },main)
+    inst("UIListLayout",{
+        Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder
+    },page)
+    inst("UIPadding",{PaddingBottom=UDim.new(0,4)},page)
+    tabPages[cat.id]=page
+end
 local foot=inst("TextLabel",{
-    Size=UDim2.new(1,-18,0,27),Position=UDim2.new(0,9,1,-31),
+    Position=UDim2.new(0,9,1,-27),Size=UDim2.new(1,-18,0,23),
     BackgroundColor3=C.card,BorderSizePixel=0,
-    Text="Ative um recurso por vez • X fecha tudo",TextWrapped=true,
-    TextColor3=C.mute,Font=Enum.Font.Gotham,TextSize=10
+    Text="Tudo OFF ao iniciar  |  X fecha o hub",
+    TextWrapped=true,TextColor3=C.mute,Font=Enum.Font.Gotham,
+    TextSize=10
 },main)
 round(foot,7)
 local float=inst("TextButton",{
-    Size=UDim2.fromOffset(45,45),Position=UDim2.new(1,-57,.56,0),
-    BackgroundColor3=C.accent,Text="DX",TextColor3=C.white,Font=Enum.Font.GothamBold,
-    TextSize=17,Visible=false,BorderSizePixel=0,Active=true
+    Name="DOUBLEX_Bubble",Size=UDim2.fromOffset(52,52),
+    Position=UDim2.new(0,12,.5,-26),BackgroundColor3=C.accent,
+    Text="DX",TextColor3=C.white,Font=Enum.Font.GothamBold,
+    TextSize=18,Visible=false,BorderSizePixel=0,Active=true
 },gui)
-round(float,13)
-local function drag(handle, target)
+round(float,26)
+inst("UIStroke",{Color=Color3.fromRGB(65,185,255),Thickness=1},float)
+local function drag(handle,target)
     local moving,started,origin=false,nil,nil
     bind(handle.InputBegan,function(input)
-        if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
+        if input.UserInputType==Enum.UserInputType.Touch or
+            input.UserInputType==Enum.UserInputType.MouseButton1 then
             moving=true;started=input.Position;origin=target.Position
             local c
             c=input.Changed:Connect(function()
@@ -206,9 +267,13 @@ local function drag(handle, target)
         end
     end)
     bind(UserInputService.InputChanged,function(input)
-        if moving and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) and started and origin then
+        if moving and
+            (input.UserInputType==Enum.UserInputType.MouseMovement or
+             input.UserInputType==Enum.UserInputType.Touch) and
+             started and origin then
             local d=input.Position-started
-            target.Position=UDim2.new(origin.X.Scale,origin.X.Offset+d.X,origin.Y.Scale,origin.Y.Offset+d.Y)
+            target.Position=UDim2.new(origin.X.Scale,origin.X.Offset+d.X,
+                origin.Y.Scale,origin.Y.Offset+d.Y)
         end
     end)
 end
@@ -218,15 +283,57 @@ local function say(msg)
     if live then foot.Text=msg end
 end
 local buttonList={}
+local activeCategory="ESP"
+local scroll=tabPages.ESP
+local searchRows={}
+local function registerSearch(obj,label,category)
+    table.insert(searchRows,{obj=obj,label=string.lower(label),
+        category=category or activeCategory})
+end
+local function applySearch()
+    local query=string.lower(tostring(search.Text or ""))
+    for _,rec in ipairs(searchRows) do
+        rec.obj.Visible=(query=="" or rec.label:find(query,1,true)~=nil)
+    end
+end
+local function showTab(category)
+    activeCategory=category
+    for id,page in pairs(tabPages) do
+        page.Visible=(id==category)
+        tabButtons[id].BackgroundColor3=id==category and C.accent or C.card
+    end
+    search.Text=""
+    applySearch()
+end
+for _,cat in ipairs(categoryNames) do
+    local id=cat.id
+    bind(tabButtons[id].MouseButton1Click,function()showTab(id)end)
+end
+bind(search:GetPropertyChangedSignal("Text"),applySearch)
+showTab("ESP")
 local function heading(text)
-    inst("TextLabel",{Size=UDim2.new(1,-4,0,19),BackgroundTransparency=1,
+    if text=="LOCALIZADOR (ESP)" then
+        activeCategory="ESP"
+    elseif text=="SOBREVIVENCIA" or text=="VELOCIDADE" then
+        activeCategory="SOBREVIVENCIA"
+    else
+        activeCategory="VERIFICACOES"
+    end
+    scroll=tabPages[activeCategory]
+    local t=inst("TextLabel",{
+        Size=UDim2.new(1,-4,0,20),BackgroundTransparency=1,
         Text="  "..text,TextColor3=C.mute,TextSize=11,
-        Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left},scroll)
+        Font=Enum.Font.GothamBold,
+        TextXAlignment=Enum.TextXAlignment.Left
+    },scroll)
+    registerSearch(t,text)
 end
 local function addButton(label,fn,key)
-    local b=inst("TextButton",{Size=UDim2.new(1,-4,0,32),BackgroundColor3=C.off,
+    local b=inst("TextButton",{
+        Size=UDim2.new(1,-4,0,34),BackgroundColor3=C.off,
         Text=label,TextColor3=C.white,Font=Enum.Font.GothamMedium,
-        TextSize=12,BorderSizePixel=0,TextWrapped=true},scroll)
+        TextSize=12,BorderSizePixel=0,TextWrapped=true
+    },scroll)
     round(b,8)
     local function redraw()
         if not key then return end
@@ -234,6 +341,7 @@ local function addButton(label,fn,key)
         b.BackgroundColor3=state[key] and C.accent or C.off
     end
     redraw()
+    registerSearch(b,label)
     bind(b.MouseButton1Click,function()
         if not live then return end
         local ok,err=pcall(fn)
@@ -1921,6 +2029,7 @@ local speedBoxRow=inst("Frame",{
     Size=UDim2.new(1,-4,0,39),BackgroundColor3=C.card,BorderSizePixel=0
 },scroll)
 round(speedBoxRow,8)
+registerSearch(speedBoxRow,"Speed velocidade 16 a 120")
 inst("TextLabel",{
     Size=UDim2.new(.56,-2,1,0),Position=UDim2.fromOffset(9,0),
     BackgroundTransparency=1,Text="Speed (16 a 120):",Font=Enum.Font.GothamMedium,
@@ -2780,7 +2889,7 @@ local function skillDiagnostic()
     end
     print(report)
 end
-heading("MAQUINAS / SKILLCHECK")
+heading("VERIFICACOES / SKILLCHECK")
 addButton("Auto SkillCheck + esteira (V32)",function()
     state.autoSkill=not state.autoSkill
     skillInfo=nil
@@ -3514,7 +3623,7 @@ local function miniDiagnostic()
     print(result)
 end
 
-heading("NOVOS MINIJOGOS - V15")
+heading("MINIJOGOS / NATACAO")
 addButton("Auto natacao 3D (BETA)",function()
     state.autoSwim=not state.autoSwim
     say(state.autoSwim and
@@ -3523,33 +3632,6 @@ addButton("Auto natacao 3D (BETA)",function()
 end,"autoSwim")
 addButton("Diagnosticar peixe / algas 3D (copiar)",function()
     miniDiagnostic()
-end)
-
-heading("AUTO BETA - TESTES MANUAIS")
-addButton("Auto jogar: maquinas + fugir + elevador",function()
-    setAutoPlay(not state.autoPlay)
-end,"autoPlay")
-heading("NAVEGACAO (SEM TELEPORTE)")
-addButton("Diagnosticar elevador (copiar)",function()elevatorDiagnostic()end)
-addButton("Caminhar ate maquina mais proxima",function()walkToward("machines")end)
-addButton("Caminhar ate o elevador",function()walkToward("elevator")end)
-addButton("Ir ao elevador apos ultima maquina",function()
-    state.autoElev=not state.autoElev
-    if not state.autoElev then lastAutoElevatorMap=nil end
-end,"autoElev")
-addButton("PARAR caminhada / auto",function()
-    setAutoPlay(false);stopNav();
-    if buttonList.autoPlay then buttonList.autoPlay()end
-    say("Movimento automatico interrompido")
-end)
-heading("AJUDA")
-addButton("Atualizar localizadores",function()refreshMarkers();say("Localizadores atualizados")end)
-addButton("Desligar todos os ESPs",function()
-    for _,k in ipairs({"monsters","machines","items","elevator","players"}) do
-        state[k]=false
-        if buttonList[k] then buttonList[k]() end
-    end
-    clearAllMarkers();say("Todos ESPs desligados")
 end)
 
 local function countMachines()
