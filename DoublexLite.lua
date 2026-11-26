@@ -49,10 +49,67 @@ end
 local purple = Color3.fromRGB(100, 50, 155)
 local green = Color3.fromRGB(35, 160, 95)
 local dark = Color3.fromRGB(48, 32, 63)
-local header = create("TextLabel", "DOUBLEX HUB", UDim2.fromOffset(12, 10), UDim2.new(1, -70, 0, 45), dark)
+local header = create("TextLabel", "DOUBLEX HUB", UDim2.fromOffset(12, 10), UDim2.new(1, -114, 0, 45), dark)
 header.Active = true
+header.TextScaled = true
+local titleSize = Instance.new("UITextSizeConstraint")
+titleSize.MaxTextSize = 20
+titleSize.Parent = header
 header.TextColor3 = Color3.fromRGB(195, 135, 255)
 local close = create("TextButton", "X", UDim2.new(1, -48, 0, 10), UDim2.fromOffset(36, 45), Color3.fromRGB(175, 40, 65))
+local minimize = create("TextButton", "−", UDim2.new(1, -92, 0, 10), UDim2.fromOffset(36, 45), purple)
+local bubble = Instance.new("TextButton")
+bubble.Name = "Reopen"
+bubble.Size = UDim2.fromOffset(58, 58)
+bubble.Position = UDim2.fromOffset(16, 100)
+bubble.BackgroundColor3 = purple
+bubble.TextColor3 = Color3.new(1, 1, 1)
+bubble.Font = Enum.Font.GothamBold
+bubble.TextSize = 23
+bubble.Text = "DX"
+bubble.Visible = false
+bubble.Active = true
+bubble.ZIndex = 10
+bubble.Parent = gui
+corner(bubble, 29)
+local bubbleStroke = Instance.new("UIStroke")
+bubbleStroke.Color = Color3.fromRGB(195, 135, 255)
+bubbleStroke.Thickness = 2
+bubbleStroke.Parent = bubble
+minimize.Activated:Connect(function()
+    frame.Visible = false
+    bubble.Visible = true
+end)
+local bubblePress, bubbleStart, bubbleOrigin
+local bubbleMoved = false
+bubble.InputBegan:Connect(function(input)
+    if bubblePress then return end
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        bubblePress = input
+        bubbleStart = Vector2.new(input.Position.X, input.Position.Y)
+        bubbleOrigin = Vector2.new(bubble.Position.X.Offset, bubble.Position.Y.Offset)
+        bubbleMoved = false
+    end
+end)
+table.insert(connections, UIS.InputChanged:Connect(function(input)
+    if not bubblePress then return end
+    if input ~= bubblePress and not (bubblePress.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseMovement) then return end
+    local delta = Vector2.new(input.Position.X, input.Position.Y) - bubbleStart
+    if delta.Magnitude > 8 then bubbleMoved = true end
+    if bubbleMoved then
+        local bounds = gui.AbsoluteSize
+        local pos = bubbleOrigin + delta
+        bubble.Position = UDim2.fromOffset(math.clamp(pos.X, 0, math.max(0, bounds.X - 58)), math.clamp(pos.Y, 0, math.max(0, bounds.Y - 58)))
+    end
+end))
+table.insert(connections, UIS.InputEnded:Connect(function(input)
+    if input ~= bubblePress then return end
+    bubblePress = nil
+    if not bubbleMoved then
+        bubble.Visible = false
+        frame.Visible = true
+    end
+end))
 local noclipBtn = create("TextButton", "Atravessar paredes: OFF", UDim2.new(0, 12, 0, 70), UDim2.new(1, -24, 0, 60), purple)
 local speedBtn = create("TextButton", "SpeedHack: OFF", UDim2.new(0, 12, 0, 140), UDim2.new(1, -24, 0, 60), purple)
 local speedLabel = create("TextLabel", "Velocidade:", UDim2.new(0, 12, 0, 215), UDim2.new(0.55, -12, 0, 50), dark)
