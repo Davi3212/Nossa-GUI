@@ -6,6 +6,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local old = playerGui:FindFirstChild("DoublexLite")
 if old then old:Destroy() end
 local noclip, speedHack, speed = false, false, 50
+local antiKnockback = false
 local collisions = {}
 local humanoid, originalSpeed
 local connections = {}
@@ -20,14 +21,14 @@ local function corner(obj, radius)
     c.Parent = obj
 end
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0.9, 0, 0, 310)
+frame.Size = UDim2.new(0.9, 0, 0, 330)
 frame.Position = UDim2.fromScale(0.5, 0.5)
 frame.AnchorPoint = Vector2.new(0.5, 0.5)
 frame.BackgroundColor3 = Color3.fromRGB(24, 17, 33)
 frame.Parent = gui
 corner(frame, 16)
 local limit = Instance.new("UISizeConstraint")
-limit.MaxSize = Vector2.new(450, 310)
+limit.MaxSize = Vector2.new(450, 330)
 limit.Parent = frame
 local stroke = Instance.new("UIStroke")
 stroke.Color = Color3.fromRGB(150, 75, 240)
@@ -110,12 +111,13 @@ table.insert(connections, UIS.InputEnded:Connect(function(input)
         frame.Visible = true
     end
 end))
-local noclipBtn = create("TextButton", "Atravessar paredes: OFF", UDim2.new(0, 12, 0, 70), UDim2.new(1, -24, 0, 60), purple)
-local speedBtn = create("TextButton", "SpeedHack: OFF", UDim2.new(0, 12, 0, 140), UDim2.new(1, -24, 0, 60), purple)
-local speedLabel = create("TextLabel", "Velocidade:", UDim2.new(0, 12, 0, 215), UDim2.new(0.55, -12, 0, 50), dark)
-local speedBox = create("TextBox", "50", UDim2.new(0.58, 0, 0, 215), UDim2.new(0.42, -12, 0, 50), dark)
+local noclipBtn = create("TextButton", "Atravessar paredes: OFF", UDim2.new(0, 12, 0, 65), UDim2.new(1, -24, 0, 50), purple)
+local speedBtn = create("TextButton", "SpeedHack: OFF", UDim2.new(0, 12, 0, 123), UDim2.new(1, -24, 0, 50), purple)
+local antiBtn = create("TextButton", "Anti-Knockback: OFF", UDim2.new(0, 12, 0, 181), UDim2.new(1, -24, 0, 50), purple)
+local speedLabel = create("TextLabel", "Velocidade:", UDim2.new(0, 12, 0, 242), UDim2.new(0.55, -12, 0, 50), dark)
+local speedBox = create("TextBox", "50", UDim2.new(0.58, 0, 0, 242), UDim2.new(0.42, -12, 0, 50), dark)
 speedBox.ClearTextOnFocus = false
-local footer = create("TextLabel", "DOUBLEX HUB - LITE", UDim2.new(0, 12, 0, 275), UDim2.new(1, -24, 0, 25), frame.BackgroundColor3)
+local footer = create("TextLabel", "DOUBLEX HUB - LITE", UDim2.new(0, 12, 0, 298), UDim2.new(1, -24, 0, 25), frame.BackgroundColor3)
 footer.TextSize = 12
 local function restoreCollision()
     for part, value in pairs(collisions) do
@@ -141,6 +143,39 @@ speedBtn.Activated:Connect(function()
     speedBtn.BackgroundColor3 = speedHack and green or purple
     if not speedHack then restoreSpeed() end
 end)
+antiBtn.Activated:Connect(function()
+    antiKnockback = not antiKnockback
+    antiBtn.Text = "Anti-Knockback: " .. (antiKnockback and "ON" or "OFF")
+    antiBtn.BackgroundColor3 = antiKnockback and green or purple
+end)
+table.insert(connections, RunService.Heartbeat:Connect(function()
+    if not antiKnockback then return end
+    local char = player.Character
+    if not char then return end
+    local h = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not h or not root or h.Health <= 0 or h.SeatPart or root.Anchored then return end
+    local v = root.AssemblyLinearVelocity
+    local horizontal = Vector3.new(v.X, 0, v.Z)
+    local move = Vector3.new(h.MoveDirection.X, 0, h.MoveDirection.Z)
+    local corrected = horizontal
+    if move.Magnitude < 0.05 then
+        if horizontal.Magnitude > 1.5 then
+            corrected = Vector3.zero
+        end
+    else
+        local direction = move.Unit
+        local forward = horizontal:Dot(direction)
+        local sideways = horizontal - direction * forward
+        local intended = math.max(0, h.WalkSpeed) * math.min(move.Magnitude, 1)
+        if forward < -2 or forward > intended + 5 or sideways.Magnitude > math.max(3, intended * 0.3) then
+            corrected = direction * math.clamp(forward, 0, intended)
+        end
+    end
+    if (corrected - horizontal).Magnitude > 0.1 then
+        root.AssemblyLinearVelocity = Vector3.new(corrected.X, v.Y, corrected.Z)
+    end
+end))
 speedBox.FocusLost:Connect(function()
     speed = math.clamp(tonumber(speedBox.Text) or speed, 1, 200)
     speedBox.Text = tostring(speed)
@@ -190,7 +225,7 @@ table.insert(connections, UIS.InputChanged:Connect(function(input)
     end
 end))
 gui.Destroying:Connect(function()
-    noclip, speedHack = false, false
+    noclip, speedHack, antiKnockback = false, false, false
     for _, connection in ipairs(connections) do connection:Disconnect() end
     restoreCollision()
     restoreSpeed()
